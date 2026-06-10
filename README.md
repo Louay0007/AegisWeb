@@ -5,6 +5,13 @@
 </p>
 
 <p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="apps/web/public/images%20(2)/aegisweb_inverted_logo.png">
+    <img src="apps/web/public/images%20(2)/aegisweb_inverted_logo.png" alt="AegisWeb inverted white logo" width="360" />
+  </picture>
+</p>
+
+<p align="center">
   <strong>The permission, credential, approval, browser-runtime, and audit layer for AI agents acting on the web.</strong>
 </p>
 
