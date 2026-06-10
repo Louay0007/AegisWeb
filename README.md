@@ -1,6 +1,10 @@
 # AegisWeb
 
 <p align="center">
+  <img src="apps/web/public/images%20(2)/aegisweb_primary_logo.png" alt="AegisWeb logo" width="360" />
+</p>
+
+<p align="center">
   <strong>The permission, credential, approval, browser-runtime, and audit layer for AI agents acting on the web.</strong>
 </p>
 
