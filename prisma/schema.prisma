@@ -1,0 +1,608 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  OWNER     @map("owner")
+  ADMIN     @map("admin")
+  APPROVER  @map("approver")
+  AUDITOR   @map("auditor")
+  DEVELOPER @map("developer")
+
+  @@map("user_role")
+}
+
+enum UserStatus {
+  ACTIVE   @map("active")
+  INVITED  @map("invited")
+  DISABLED @map("disabled")
+
+  @@map("user_status")
+}
+
+enum AgentStatus {
+  ACTIVE  @map("active")
+  PAUSED  @map("paused")
+  REVOKED @map("revoked")
+
+  @@map("agent_status")
+}
+
+enum VendorCategory {
+  ANALYTICS    @map("analytics")
+  PRODUCTIVITY @map("productivity")
+  SALES        @map("sales")
+  PAYROLL      @map("payroll")
+  FINANCE      @map("finance")
+  SECURITY     @map("security")
+  OTHER        @map("other")
+
+  @@map("vendor_category")
+}
+
+enum PolicyType {
+  WEBSITE_ALLOWLIST  @map("website_allowlist")
+  ACTION_PERMISSIONS @map("action_permissions")
+  SPENDING_LIMITS    @map("spending_limits")
+  DATA_ACCESS        @map("data_access")
+  TIME_WINDOW        @map("time_window")
+  APPROVAL_RULES     @map("approval_rules")
+  AGENT_POLICY_BUNDLE @map("agent_policy_bundle")
+
+  @@map("policy_type")
+}
+
+enum PolicyStatus {
+  ACTIVE   @map("active")
+  DRAFT    @map("draft")
+  ARCHIVED @map("archived")
+
+  @@map("policy_status")
+}
+
+enum CredentialType {
+  USERNAME_PASSWORD @map("username_password")
+  TOTP_SECRET       @map("totp_secret")
+  API_TOKEN         @map("api_token")
+  OAUTH_TOKEN       @map("oauth_token")
+  SESSION_COOKIE    @map("session_cookie")
+
+  @@map("credential_type")
+}
+
+enum CredentialStatus {
+  ACTIVE  @map("active")
+  REVOKED @map("revoked")
+  ROTATED @map("rotated")
+
+  @@map("credential_status")
+}
+
+enum WorkflowTemplate {
+  VENDOR_INVOICE_DOWNLOAD @map("vendor_invoice_download")
+  SAAS_RENEWAL_CHECK      @map("saas_renewal_check")
+  PLAN_DOWNGRADE_REQUEST  @map("plan_downgrade_request")
+
+  @@map("workflow_template")
+}
+
+enum WorkflowStatus {
+  ACTIVE   @map("active")
+  PAUSED   @map("paused")
+  ARCHIVED @map("archived")
+
+  @@map("workflow_status")
+}
+
+enum WorkflowRunStatus {
+  QUEUED               @map("queued")
+  RUNNING              @map("running")
+  WAITING_FOR_APPROVAL @map("waiting_for_approval")
+  COMPLETED            @map("completed")
+  FAILED               @map("failed")
+  CANCELED             @map("canceled")
+  DENIED               @map("denied")
+
+  @@map("workflow_run_status")
+}
+
+enum ActionType {
+  OPEN_PAGE              @map("open_page")
+  READ_PAGE              @map("read_page")
+  FILL_FORM              @map("fill_form")
+  CLICK_BUTTON           @map("click_button")
+  DOWNLOAD_FILE          @map("download_file")
+  SUBMIT_FORM            @map("submit_form")
+  CHANGE_PLAN            @map("change_plan")
+  CANCEL_SUBSCRIPTION    @map("cancel_subscription")
+  INVITE_USER            @map("invite_user")
+  CHANGE_BILLING_DETAILS @map("change_billing_details")
+  MAKE_PURCHASE          @map("make_purchase")
+  CREDENTIAL_INJECTION   @map("credential_injection")
+
+  @@map("action_type")
+}
+
+enum PolicyDecision {
+  ALLOW                 @map("allow")
+  DENY                  @map("deny")
+  REQUIRE_APPROVAL      @map("require_approval")
+  REQUIRE_STEP_UP_AUTH  @map("require_step_up_auth")
+  PAUSE_AGENT           @map("pause_agent")
+
+  @@map("policy_decision")
+}
+
+enum RiskLevel {
+  LOW      @map("low")
+  MEDIUM   @map("medium")
+  HIGH     @map("high")
+  CRITICAL @map("critical")
+
+  @@map("risk_level")
+}
+
+enum ApprovalStatus {
+  PENDING       @map("pending")
+  APPROVED      @map("approved")
+  REJECTED      @map("rejected")
+  EXPIRED       @map("expired")
+  AUTO_APPROVED @map("auto_approved")
+  ESCALATED     @map("escalated")
+
+  @@map("approval_status")
+}
+
+enum AuditActorType {
+  USER        @map("user")
+  AGENT       @map("agent")
+  WORKER      @map("worker")
+  SYSTEM      @map("system")
+  INTEGRATION @map("integration")
+
+  @@map("audit_actor_type")
+}
+
+enum AuditEventType {
+  ORGANIZATION_CREATED          @map("organization_created")
+  ORGANIZATION_UPDATED          @map("organization_updated")
+  USER_INVITED                  @map("user_invited")
+  USER_REGISTERED               @map("user_registered")
+  USER_LOGIN_SUCCEEDED          @map("user_login_succeeded")
+  USER_LOGIN_FAILED             @map("user_login_failed")
+  USER_LOGOUT                   @map("user_logout")
+  TOKEN_REFRESHED               @map("token_refreshed")
+  USER_ROLE_CHANGED             @map("user_role_changed")
+  USER_DISABLED                 @map("user_disabled")
+  AGENT_CREATED                 @map("agent_created")
+  AGENT_UPDATED                 @map("agent_updated")
+  AGENT_PAUSED                  @map("agent_paused")
+  AGENT_RESUMED                 @map("agent_resumed")
+  AGENT_REVOKED                 @map("agent_revoked")
+  VENDOR_CREATED                @map("vendor_created")
+  VENDOR_UPDATED                @map("vendor_updated")
+  VENDOR_DELETED                @map("vendor_deleted")
+  POLICY_CREATED                @map("policy_created")
+  POLICY_UPDATED                @map("policy_updated")
+  POLICY_EVALUATED              @map("policy_evaluated")
+  CREDENTIAL_CREATED            @map("credential_created")
+  CREDENTIAL_UPDATED            @map("credential_updated")
+  CREDENTIAL_GRANTED_TO_AGENT   @map("credential_granted_to_agent")
+  CREDENTIAL_GRANT_REVOKED      @map("credential_grant_revoked")
+  CREDENTIAL_REVOKED            @map("credential_revoked")
+  CREDENTIAL_USED               @map("credential_used")
+  WORKFLOW_CREATED              @map("workflow_created")
+  WORKFLOW_UPDATED              @map("workflow_updated")
+  WORKFLOW_RUN_REQUESTED        @map("workflow_run_requested")
+  WORKFLOW_RUN_CREATED          @map("workflow_run_created")
+  WORKFLOW_RUN_STARTED          @map("workflow_run_started")
+  WORKFLOW_STEP_STARTED         @map("workflow_step_started")
+  WORKFLOW_RUN_WAITING_FOR_APPROVAL @map("workflow_run_waiting_for_approval")
+  WORKFLOW_RUN_COMPLETED        @map("workflow_run_completed")
+  WORKFLOW_RUN_FAILED           @map("workflow_run_failed")
+  WORKFLOW_RUN_CANCELED         @map("workflow_run_canceled")
+  WORKFLOW_RUN_DENIED           @map("workflow_run_denied")
+  BROWSER_PAGE_OPENED           @map("browser_page_opened")
+  BROWSER_ELEMENT_CLICKED       @map("browser_element_clicked")
+  FILE_DOWNLOADED               @map("file_downloaded")
+  APPROVAL_REQUESTED            @map("approval_requested")
+  APPROVAL_APPROVED             @map("approval_approved")
+  APPROVAL_REJECTED             @map("approval_rejected")
+  APPROVAL_EXPIRED              @map("approval_expired")
+  RECEIPT_CREATED               @map("receipt_created")
+
+  @@map("audit_event_type")
+}
+
+enum FileKind {
+  SCREENSHOT        @map("screenshot")
+  INVOICE           @map("invoice")
+  PLAYWRIGHT_TRACE  @map("playwright_trace")
+  RECEIPT_EXPORT    @map("receipt_export")
+  DOWNLOAD          @map("download")
+
+  @@map("file_kind")
+}
+
+enum ReceiptStatus {
+  COMPLETED @map("completed")
+  FAILED    @map("failed")
+  DENIED    @map("denied")
+  CANCELED  @map("canceled")
+
+  @@map("receipt_status")
+}
+
+model Organization {
+  id            String   @id @default(uuid()) @db.Uuid
+  name          String
+  domain        String   @unique
+  plan          String
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  users         User[]
+  agents        Agent[]
+  vendors       Vendor[]
+  policies      Policy[]
+  credentials   Credential[]
+  workflows     Workflow[]
+  workflowRuns  WorkflowRun[]
+  actionAttempts ActionAttempt[]
+  approvalRequests ApprovalRequest[]
+  auditEvents   AuditEvent[]
+  files         File[]
+  receipts      Receipt[]
+  refreshTokens RefreshToken[]
+
+  @@map("organizations")
+}
+
+model User {
+  id             String     @id @default(uuid()) @db.Uuid
+  organizationId String     @map("organization_id") @db.Uuid
+  email          String     @unique
+  name           String
+  role           UserRole
+  passwordHash   String     @map("password_hash")
+  status         UserStatus @default(ACTIVE)
+  createdAt      DateTime   @default(now()) @map("created_at")
+  updatedAt      DateTime   @updatedAt @map("updated_at")
+  lastLoginAt    DateTime?  @map("last_login_at")
+  disabledAt     DateTime?  @map("disabled_at")
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAgents  Agent[]      @relation("AgentCreatedBy")
+  ownedVendors   Vendor[]     @relation("VendorOwner")
+  createdPolicies Policy[]    @relation("PolicyCreatedBy")
+  createdCredentials Credential[] @relation("CredentialCreatedBy")
+  createdCredentialGrants CredentialAgentGrant[] @relation("CredentialGrantCreatedBy")
+  createdWorkflows Workflow[] @relation("WorkflowCreatedBy")
+  approvalRequests ApprovalRequest[] @relation("ApprovalApprover")
+  refreshTokens RefreshToken[]
+
+  @@index([organizationId])
+  @@map("users")
+}
+
+model Agent {
+  id             String      @id @default(uuid()) @db.Uuid
+  organizationId String      @map("organization_id") @db.Uuid
+  name           String
+  identifier     String      @unique
+  purpose        String
+  status         AgentStatus @default(ACTIVE)
+  createdByUserId String     @map("created_by_user_id") @db.Uuid
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+  revokedAt      DateTime?   @map("revoked_at")
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy      User         @relation("AgentCreatedBy", fields: [createdByUserId], references: [id], onDelete: Cascade)
+  policies       Policy[]
+  credentialGrants CredentialAgentGrant[]
+  workflows      Workflow[]
+  workflowRuns   WorkflowRun[]
+  actionAttempts ActionAttempt[]
+  approvalRequests ApprovalRequest[] @relation("ApprovalRequestedByAgent")
+  auditEvents    AuditEvent[]
+  receipts       Receipt[]
+
+  @@index([organizationId])
+  @@map("agents")
+}
+
+model Vendor {
+  id             String         @id @default(uuid()) @db.Uuid
+  organizationId String         @map("organization_id") @db.Uuid
+  name           String
+  website        String
+  category       VendorCategory
+  renewalDate    DateTime?      @map("renewal_date") @db.Date
+  monthlyCostCents Int?         @map("monthly_cost_cents")
+  ownerUserId    String?        @map("owner_user_id") @db.Uuid
+  metadataJson   Json           @default("{}") @map("metadata_json") @db.JsonB
+  deletedAt      DateTime?      @map("deleted_at")
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  owner          User?        @relation("VendorOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  credentials    Credential[]
+  workflows      Workflow[]
+  workflowRuns   WorkflowRun[]
+  actionAttempts ActionAttempt[]
+
+  @@unique([organizationId, website])
+  @@index([organizationId])
+  @@index([website])
+  @@map("vendors")
+}
+
+model Policy {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  agentId        String?      @map("agent_id") @db.Uuid
+  name           String
+  type           PolicyType
+  version        Int          @default(1)
+  status         PolicyStatus @default(ACTIVE)
+  rulesJson      Json         @map("rules_json") @db.JsonB
+  createdByUserId String     @map("created_by_user_id") @db.Uuid
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  agent          Agent?       @relation(fields: [agentId], references: [id])
+  createdBy      User         @relation("PolicyCreatedBy", fields: [createdByUserId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([agentId])
+  @@map("policies")
+}
+
+model Credential {
+  id             String           @id @default(uuid()) @db.Uuid
+  organizationId String           @map("organization_id") @db.Uuid
+  vendorId       String           @map("vendor_id") @db.Uuid
+  label          String
+  credentialType CredentialType   @map("credential_type")
+  encryptedPayload Json           @map("encrypted_payload") @db.JsonB
+  encryptionVersion String        @map("encryption_version")
+  status         CredentialStatus @default(ACTIVE)
+  lastUsedAt     DateTime?        @map("last_used_at")
+  createdByUserId String          @map("created_by_user_id") @db.Uuid
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+  revokedAt      DateTime?        @map("revoked_at")
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  vendor         Vendor       @relation(fields: [vendorId], references: [id])
+  createdBy      User         @relation("CredentialCreatedBy", fields: [createdByUserId], references: [id], onDelete: Cascade)
+  grants         CredentialAgentGrant[]
+
+  @@index([organizationId])
+  @@index([vendorId])
+  @@map("credentials")
+}
+
+model CredentialAgentGrant {
+  id              String    @id @default(uuid()) @db.Uuid
+  credentialId    String    @map("credential_id") @db.Uuid
+  agentId         String    @map("agent_id") @db.Uuid
+  scope           String
+  createdByUserId String    @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime  @default(now()) @map("created_at")
+  revokedAt       DateTime? @map("revoked_at")
+
+  credential      Credential @relation(fields: [credentialId], references: [id], onDelete: Cascade)
+  agent           Agent      @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  createdBy       User       @relation("CredentialGrantCreatedBy", fields: [createdByUserId], references: [id], onDelete: Cascade)
+
+  @@unique([credentialId, agentId])
+  @@index([agentId])
+  @@index([credentialId])
+  @@map("credential_agent_grants")
+}
+
+model Workflow {
+  id             String           @id @default(uuid()) @db.Uuid
+  organizationId String           @map("organization_id") @db.Uuid
+  agentId        String           @map("agent_id") @db.Uuid
+  vendorId       String           @map("vendor_id") @db.Uuid
+  name           String
+  template       WorkflowTemplate
+  status         WorkflowStatus   @default(ACTIVE)
+  configurationJson Json          @default("{}") @map("configuration_json") @db.JsonB
+  createdByUserId String          @map("created_by_user_id") @db.Uuid
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  agent          Agent        @relation(fields: [agentId], references: [id])
+  vendor         Vendor       @relation(fields: [vendorId], references: [id])
+  createdBy      User         @relation("WorkflowCreatedBy", fields: [createdByUserId], references: [id], onDelete: Cascade)
+  runs           WorkflowRun[]
+
+  @@index([organizationId])
+  @@index([agentId])
+  @@map("workflows")
+}
+
+model WorkflowRun {
+  id             String            @id @default(uuid()) @db.Uuid
+  organizationId String            @map("organization_id") @db.Uuid
+  workflowId     String            @map("workflow_id") @db.Uuid
+  agentId        String            @map("agent_id") @db.Uuid
+  vendorId       String?           @map("vendor_id") @db.Uuid
+  status         WorkflowRunStatus
+  startedAt      DateTime?         @map("started_at")
+  completedAt    DateTime?         @map("completed_at")
+  currentStep    String?           @map("current_step")
+  resultSummary  String?           @map("result_summary")
+  errorMessage   String?           @map("error_message")
+  stateJson      Json              @default("{}") @map("state_json") @db.JsonB
+  createdAt      DateTime          @default(now()) @map("created_at")
+  updatedAt      DateTime          @updatedAt @map("updated_at")
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workflow       Workflow     @relation(fields: [workflowId], references: [id])
+  agent          Agent        @relation(fields: [agentId], references: [id])
+  vendor         Vendor?      @relation(fields: [vendorId], references: [id])
+  actionAttempts ActionAttempt[]
+  approvalRequests ApprovalRequest[]
+  auditEvents    AuditEvent[]
+  files          File[]
+  receipt        Receipt?
+
+  @@index([organizationId])
+  @@index([workflowId])
+  @@index([status])
+  @@map("workflow_runs")
+}
+
+model ActionAttempt {
+  id             String         @id @default(uuid()) @db.Uuid
+  organizationId String         @map("organization_id") @db.Uuid
+  workflowRunId  String         @map("workflow_run_id") @db.Uuid
+  agentId        String         @map("agent_id") @db.Uuid
+  vendorId       String?        @map("vendor_id") @db.Uuid
+  website        String
+  actionType     ActionType     @map("action_type")
+  riskLevel      RiskLevel      @map("risk_level")
+  policyDecision PolicyDecision @map("policy_decision")
+  policyReason   String?        @map("policy_reason")
+  inputSummary   String?        @map("input_summary")
+  outputSummary  String?        @map("output_summary")
+  amountCents    Int?           @map("amount_cents")
+  metadataJson   Json           @default("{}") @map("metadata_json") @db.JsonB
+  createdAt      DateTime       @default(now()) @map("created_at")
+  completedAt    DateTime?      @map("completed_at")
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workflowRun    WorkflowRun  @relation(fields: [workflowRunId], references: [id], onDelete: Cascade)
+  agent          Agent        @relation(fields: [agentId], references: [id])
+  vendor         Vendor?      @relation(fields: [vendorId], references: [id])
+  approvalRequest ApprovalRequest?
+
+  @@index([workflowRunId])
+  @@map("action_attempts")
+}
+
+model ApprovalRequest {
+  id                  String         @id @default(uuid()) @db.Uuid
+  organizationId      String         @map("organization_id") @db.Uuid
+  workflowRunId       String         @map("workflow_run_id") @db.Uuid
+  actionAttemptId     String         @unique @map("action_attempt_id") @db.Uuid
+  status              ApprovalStatus
+  requestedByAgentId  String         @map("requested_by_agent_id") @db.Uuid
+  approverUserId      String?        @map("approver_user_id") @db.Uuid
+  summary             String
+  riskLevel           RiskLevel      @map("risk_level")
+  amountCents         Int?           @map("amount_cents")
+  screenshotFileId    String?        @map("screenshot_file_id") @db.Uuid
+  policyTriggeredJson Json           @default("{}") @map("policy_triggered_json") @db.JsonB
+  expiresAt           DateTime?      @map("expires_at")
+  approvedAt          DateTime?      @map("approved_at")
+  rejectedAt          DateTime?      @map("rejected_at")
+  comment             String?
+  createdAt           DateTime       @default(now()) @map("created_at")
+  updatedAt           DateTime       @updatedAt @map("updated_at")
+
+  organization        Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workflowRun         WorkflowRun  @relation(fields: [workflowRunId], references: [id], onDelete: Cascade)
+  actionAttempt       ActionAttempt @relation(fields: [actionAttemptId], references: [id], onDelete: Cascade)
+  requestedByAgent    Agent        @relation("ApprovalRequestedByAgent", fields: [requestedByAgentId], references: [id])
+  approver            User?        @relation("ApprovalApprover", fields: [approverUserId], references: [id], onDelete: SetNull)
+  screenshotFile      File?        @relation("ApprovalScreenshot", fields: [screenshotFileId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([status])
+  @@map("approval_requests")
+}
+
+model AuditEvent {
+  id             String         @id @default(uuid()) @db.Uuid
+  organizationId String         @map("organization_id") @db.Uuid
+  workflowRunId  String?        @map("workflow_run_id") @db.Uuid
+  agentId        String?        @map("agent_id") @db.Uuid
+  actorType      AuditActorType @map("actor_type")
+  actorId        String?        @map("actor_id")
+  eventType      AuditEventType @map("event_type")
+  eventDataJson  Json           @map("event_data_json") @db.JsonB
+  prevHash       String?        @map("prev_hash")
+  eventHash      String         @map("event_hash")
+  createdAt      DateTime       @default(now()) @map("created_at")
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workflowRun    WorkflowRun? @relation(fields: [workflowRunId], references: [id])
+  agent          Agent?       @relation(fields: [agentId], references: [id])
+
+  @@index([organizationId])
+  @@index([workflowRunId])
+  @@map("audit_events")
+}
+
+model File {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  workflowRunId  String?  @map("workflow_run_id") @db.Uuid
+  kind           FileKind
+  bucket         String
+  objectKey      String   @map("object_key")
+  mimeType       String   @map("mime_type")
+  sizeBytes      Int      @map("size_bytes")
+  sha256         String
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workflowRun    WorkflowRun? @relation(fields: [workflowRunId], references: [id])
+  approvalScreenshots ApprovalRequest[] @relation("ApprovalScreenshot")
+
+  @@index([organizationId])
+  @@index([workflowRunId])
+  @@map("files")
+}
+
+model Receipt {
+  id                  String        @id @default(uuid()) @db.Uuid
+  organizationId      String        @map("organization_id") @db.Uuid
+  workflowRunId       String        @unique @map("workflow_run_id") @db.Uuid
+  agentId             String        @map("agent_id") @db.Uuid
+  finalStatus         ReceiptStatus @map("final_status")
+  summary             String
+  timelineJson        Json          @map("timeline_json") @db.JsonB
+  screenshotsJson     Json          @default("[]") @map("screenshots_json") @db.JsonB
+  filesJson           Json          @default("[]") @map("files_json") @db.JsonB
+  policyDecisionsJson Json          @default("[]") @map("policy_decisions_json") @db.JsonB
+  approvalDetailsJson Json          @default("{}") @map("approval_details_json") @db.JsonB
+  createdAt           DateTime      @default(now()) @map("created_at")
+
+  organization        Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workflowRun         WorkflowRun  @relation(fields: [workflowRunId], references: [id], onDelete: Cascade)
+  agent               Agent        @relation(fields: [agentId], references: [id])
+
+  @@map("receipts")
+}
+
+model RefreshToken {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  userId         String    @map("user_id") @db.Uuid
+  tokenHash      String    @map("token_hash")
+  expiresAt      DateTime  @map("expires_at")
+  revokedAt      DateTime? @map("revoked_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([userId])
+  @@unique([tokenHash])
+  @@map("refresh_tokens")
+}

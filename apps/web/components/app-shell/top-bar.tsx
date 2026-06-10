@@ -1,0 +1,132 @@
+"use client";
+
+import { usePathname, useRouter } from "next/navigation";
+import { Bell, LogOut, Refresh, User } from "iconoir-react";
+
+import { Button } from "@/components/ui/button";
+import { DashboardGlobalSearch } from "@/components/dashboard/dashboard-global-search";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { type AuthSession, useAuthSession } from "@/lib/auth/auth-session";
+import { approvals as approvalsFixture } from "@/lib/fixtures/dashboard";
+import { pickItems, useApprovals } from "@/lib/data-layer";
+import { MobileNav } from "./mobile-nav";
+import { pageTitleForPath } from "./nav-items";
+
+type TopBarProps = {
+  session: AuthSession | null;
+};
+
+export function TopBar({ session }: TopBarProps) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const { signOut: signOutSession } = useAuthSession();
+  const approvalItems = pickItems(useApprovals(), approvalsFixture);
+  const pendingApprovalCount = approvalItems.filter(
+    (approval) => approval.status === "pending",
+  ).length;
+  const title = pageTitleForPath(pathname);
+  const initials = session?.user.name
+    .split(" ")
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
+  async function signOut() {
+    await signOutSession();
+    router.push("/login");
+  }
+
+  return (
+    <header className="sticky top-0 z-20 border-b border-border bg-background/86 backdrop-blur-md">
+      <div className="flex h-16 items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
+        <div className="flex min-w-0 items-center gap-3">
+          <MobileNav />
+          <div className="min-w-0">
+            <p className="hidden text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground sm:block">
+              AegisWeb
+            </p>
+            <p className="truncate text-lg font-semibold tracking-normal">
+              {title}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <DashboardGlobalSearch />
+          <Button
+            variant="outline"
+            size="icon"
+            className="size-10"
+            aria-label="Refresh current page"
+            onClick={() => router.refresh()}
+          >
+            <Refresh className="size-4" strokeWidth={1.8} />
+          </Button>
+          <Button
+            asChild
+            variant="outline"
+            className="hidden h-10 gap-2 px-3 sm:inline-flex"
+            aria-label="Pending approvals"
+          >
+            <a href="/app/approvals">
+              <Bell className="size-4" strokeWidth={1.8} />
+              <span className="text-sm tabular-nums">
+                {pendingApprovalCount}
+              </span>
+            </a>
+          </Button>
+          {session?.mode === "demo" ? (
+            <span className="hidden rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800 sm:inline-flex">
+              Demo data
+            </span>
+          ) : null}
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                className="h-10 gap-2 px-2.5 pr-3"
+                aria-label="Open user menu"
+              >
+                <span className="inline-flex size-7 items-center justify-center rounded-md bg-foreground text-xs font-semibold text-background">
+                  {initials ? initials : <User className="size-4" strokeWidth={1.8} />}
+                </span>
+                <span className="hidden max-w-32 truncate text-sm md:inline">
+                  {session?.user.name ?? "Guest"}
+                </span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-64">
+              <DropdownMenuLabel>
+                <span className="block truncate">
+                  {session?.user.name ?? "Guest"}
+                </span>
+                <span className="mt-1 block truncate text-xs font-normal text-muted-foreground">
+                  {session?.user.email ?? "No active session"}
+                </span>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem disabled>
+                <User className="size-4" strokeWidth={1.8} />
+                {session?.user.role ?? "Anonymous"}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={signOut} variant="destructive">
+                <LogOut className="size-4" strokeWidth={1.8} />
+                Sign out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+    </header>
+  );
+}

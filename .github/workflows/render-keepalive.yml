@@ -1,0 +1,30 @@
+name: Render Keepalive
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Render API
+        env:
+          RENDER_API_URL: ${{ secrets.RENDER_API_URL || vars.RENDER_API_URL }}
+        run: |
+          if [ -n "$RENDER_API_URL" ]; then
+            curl --fail --silent --show-error --max-time 30 "$RENDER_API_URL/health"
+          else
+            echo "RENDER_API_URL is not configured; skipping API ping."
+          fi
+
+      - name: Ping Render web
+        env:
+          RENDER_WEB_URL: ${{ secrets.RENDER_WEB_URL || vars.RENDER_WEB_URL }}
+        run: |
+          if [ -n "$RENDER_WEB_URL" ]; then
+            curl --fail --silent --show-error --max-time 30 "$RENDER_WEB_URL/login"
+          else
+            echo "RENDER_WEB_URL is not configured; skipping web ping."
+          fi

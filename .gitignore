@@ -1,0 +1,14 @@
+node_modules/
+dist/
+coverage/
+.env
+.env.local
+.env.*.local
+*.log
+tmp/
+playwright-report/
+test-results/
+.qa-artifacts/
+.playwright-cli/
+output/
+*.tsbuildinfo

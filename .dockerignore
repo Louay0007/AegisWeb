@@ -1,0 +1,13 @@
+node_modules
+apps/web/.next/cache
+apps/web/tsconfig.tsbuildinfo
+.git
+.playwright-cli
+.qa-artifacts
+output
+tmp-*.log
+*.err.log
+*.out.log
+.env
+.env.*
+!.env.example

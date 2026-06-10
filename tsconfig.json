@@ -1,0 +1,31 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "strict": true,
+    "esModuleInterop": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "baseUrl": ".",
+    "paths": {
+      "@agentpass/audit": ["libs/audit/src/index.ts"],
+      "@agentpass/browser-runtime": ["libs/browser-runtime/src/index.ts"],
+      "@agentpass/database": ["libs/database/src/index.ts"],
+      "@agentpass/domain": ["libs/domain/src/index.ts"],
+      "@agentpass/policy-engine": ["libs/policy-engine/src/index.ts"],
+      "@agentpass/testing": ["libs/testing/src/index.ts"],
+      "@agentpass/vault": ["libs/vault/src/index.ts"],
+      "@/*": ["apps/web/*"]
+    },
+    "types": ["node", "vitest/globals"],
+    "noEmit": true
+  },
+  "include": ["apps/**/*.ts", "libs/**/*.ts", "scripts/**/*.ts", "tests/**/*.ts", "vitest.config.ts", "prisma.config.ts", "eslint.config.mjs"],
+  "exclude": ["node_modules", "dist", "coverage", "apps/web"]
+}
