@@ -1,8 +1,5 @@
 # AegisWeb
 
-<p align="center">
-  <img src="apps/web/public/images%20(2)/aegisweb_primary_logo.png" alt="AegisWeb logo" width="360" />
-</p>
 
 <p align="center">
   <picture>
