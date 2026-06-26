@@ -44,7 +44,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm audit --prod --audit-level moderate
-      - run: pnpm sbom
+      - run: pnpm run sbom:generate
       - uses: actions/upload-artifact@v4
         with:
           name: sbom
@@ -63,6 +63,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm db:generate
+      - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm infra:up
       - run: pnpm db:migrate
       - run: pnpm test
@@ -149,6 +150,7 @@ jobs:
           image-ref: aegisweb-web:${{ github.sha }}
           severity: CRITICAL,HIGH
           exit-code: '1'
+      - run: rm -f trivy_envs.txt
       - uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
