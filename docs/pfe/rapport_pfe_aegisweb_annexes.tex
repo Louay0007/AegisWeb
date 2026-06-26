@@ -1,0 +1,222 @@
+% =============================================================
+% ANNEXES
+% =============================================================
+\clearpage
+\appendix
+
+\chapter{Structure du projet — Arborescence des fichiers}
+
+\begin{lstlisting}[
+  basicstyle       = \ttfamily\scriptsize,
+  frame            = single,
+  numbers          = none,
+  backgroundcolor  = \color{codebg},
+  rulecolor        = \color{codeframe},
+  caption          = {Arborescence du dépôt AegisWeb},
+  label            = {lst:tree}
+]
+AegisWeb/
+|-- apps/
+|   |-- api/                    # API REST NestJS (control plane)
+|   |   `-- src/
+|   |       |-- main.ts
+|   |       |-- app.module.ts
+|   |       |-- auth/
+|   |       |-- authorization/
+|   |       |-- agents/
+|   |       |-- vendors/
+|   |       |-- policies/
+|   |       |-- credentials/
+|   |       |-- workflows/
+|   |       |-- workflow-runs/
+|   |       |-- approvals/
+|   |       |-- receipts/
+|   |       |-- audit/
+|   |       |-- files/
+|   |       |-- queue/
+|   |       `-- internal-worker/
+|   |-- worker/                 # Worker BullMQ + Playwright
+|   |-- vendor-sandbox/         # Portail SaaS simulé
+|   `-- web/                    # Dashboard Next.js 16
+|       |-- app/                # App Router (/, /login, /app/*)
+|       |-- components/         # UI, product, evidence, brand
+|       |-- lib/                # auth, api, data-layer
+|       `-- middleware.ts
+|-- libs/
+|   |-- domain/                 # Enums, permissions, types
+|   |-- database/               # Prisma client + seed
+|   |-- vault/                  # AES-256-GCM
+|   |-- policy-engine/          # Moteur politiques pur
+|   |-- browser-runtime/        # Playwright contrôlé
+|   |-- audit/
+|   `-- testing/
+|-- prisma/
+|   |-- schema.prisma
+|   `-- migrations/
+|-- infra/
+|   `-- docker-compose.yml
+|-- tests/                      # 33 specs Vitest (phase0--29)
+|-- scripts/                    # demo-local, e2e-happy-path
+`-- docs/                       # Plans phases, audits, runbooks
+\end{lstlisting}
+
+\chapter{Référence des endpoints API}
+
+\begin{longtable}{@{}p{1.3cm}p{5.8cm}p{4cm}p{1.6cm}@{}}
+\caption{Référence des endpoints API AegisWeb}
+\label{tab:api_ref} \\
+\toprule
+\textbf{Méthode} & \textbf{Endpoint} & \textbf{Description} & \textbf{Auth} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Méthode} & \textbf{Endpoint} & \textbf{Description} & \textbf{Auth} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+\bottomrule
+\endlastfoot
+\multicolumn{4}{@{}l}{\small\textit{Authentification (\texttt{/auth})}} \\[2pt]
+POST & \texttt{/auth/register} & Inscription organisation & Non \\
+POST & \texttt{/auth/login} & Connexion (JWT + refresh cookie) & Non \\
+POST & \texttt{/auth/refresh} & Rafraîchir access token & Cookie \\
+POST & \texttt{/auth/logout} & Révoquer refresh token & JWT \\
+GET  & \texttt{/auth/me} & Profil utilisateur courant & JWT \\[4pt]
+\multicolumn{4}{@{}l}{\small\textit{Santé (\texttt{/health})}} \\[2pt]
+GET  & \texttt{/health} & Health check basique & Non \\
+GET  & \texttt{/health/ready} & Readiness (Postgres, Redis) & Non \\[4pt]
+\multicolumn{4}{@{}l}{\small\textit{Organisation (\texttt{/organization})}} \\[2pt]
+GET  & \texttt{/organization} & Détails organisation & JWT \\
+PATCH & \texttt{/organization} & Mise à jour organisation & JWT \\[4pt]
+\multicolumn{4}{@{}l}{\small\textit{Utilisateurs (\texttt{/users})}} \\[2pt]
+GET  & \texttt{/users} & Liste membres & JWT \\
+POST & \texttt{/users/invite} & Inviter membre & JWT \\
+PATCH & \texttt{/users/:id/role} & Modifier rôle & JWT \\[4pt]
+\multicolumn{4}{@{}l}{\small\textit{Agents (\texttt{/agents})}} \\[2pt]
+GET  & \texttt{/agents} & Liste agents & JWT \\
+POST & \texttt{/agents} & Créer agent & JWT \\
+GET  & \texttt{/agents/:id} & Détail agent & JWT \\
+PATCH & \texttt{/agents/:id} & Modifier agent & JWT \\[4pt]
+\multicolumn{4}{@{}l}{\small\textit{Vendors (\texttt{/vendors})}} \\[2pt]
+GET/POST & \texttt{/vendors} & CRUD fournisseurs SaaS & JWT \\
+GET/PATCH/DELETE & \texttt{/vendors/:id} & Opérations vendor & JWT \\[4pt]
+\multicolumn{4}{@{}l}{\small\textit{Politiques (\texttt{/policies})}} \\[2pt]
+GET/POST & \texttt{/policies} & CRUD politiques & JWT \\
+POST & \texttt{/policies/:id/evaluate} & Évaluation politique & JWT \\[4pt]
+\multicolumn{4}{@{}l}{\small\textit{Credentials (\texttt{/credentials})}} \\[2pt]
+GET/POST & \texttt{/credentials} & CRUD credentials chiffrés & JWT \\
+POST & \texttt{/credentials/:id/grants} & Accorder à un agent & JWT \\[4pt]
+\multicolumn{4}{@{}l}{\small\textit{Workflows (\texttt{/workflows})}} \\[2pt]
+GET/POST & \texttt{/workflows} & CRUD définitions workflow & JWT \\
+GET/PATCH & \texttt{/workflows/:id} & Détail / mise à jour & JWT \\[4pt]
+\multicolumn{4}{@{}l}{\small\textit{Exécutions (\texttt{/workflow-runs})}} \\[2pt]
+GET/POST & \texttt{/workflow-runs} & Liste / lancer run & JWT \\
+GET  & \texttt{/workflow-runs/:id} & Détail run + état & JWT \\
+POST & \texttt{/workflow-runs/:id/cancel} & Annuler run & JWT \\
+GET  & \texttt{/workflow-runs/:runId/action-attempts} & Tentatives & JWT \\[4pt]
+\multicolumn{4}{@{}l}{\small\textit{Approbations (\texttt{/approvals})}} \\[2pt]
+GET  & \texttt{/approvals} & File d'approbation & JWT \\
+GET  & \texttt{/approvals/:id} & Détail approbation & JWT \\
+POST & \texttt{/approvals/:id/approve} & Approuver & JWT \\
+POST & \texttt{/approvals/:id/reject} & Rejeter & JWT \\[4pt]
+\multicolumn{4}{@{}l}{\small\textit{Receipts, Audit, Files}} \\[2pt]
+GET  & \texttt{/receipts} & Liste reçus de confiance & JWT \\
+GET  & \texttt{/audit-events} & Journal d'audit & JWT \\
+GET  & \texttt{/files/:id} & Métadonnées fichier & JWT \\[4pt]
+\multicolumn{4}{@{}l}{\small\textit{Endpoints internes worker (\texttt{/internal})}} \\[2pt]
+POST & \texttt{/internal/workers/runs/:runId/events} & Événements audit & Worker \\
+POST & \texttt{/internal/workers/runs/:runId/screenshots} & Upload screenshot & Worker \\
+POST & \texttt{/internal/workers/runs/:runId/complete} & Fin run réussie & Worker \\
+POST & \texttt{/internal/workers/runs/:runId/fail} & Échec run & Worker \\
+POST & \texttt{/internal/workers/runs/:runId/approval-requests} & Demande approbation & Worker \\
+POST & \texttt{/internal/vault/credentials/:id/decrypt-for-run} & Déchiffrement scopé & Worker \\
+\end{longtable}
+
+\chapter{Variables d'environnement}
+
+\begin{table}[H]
+\centering
+\caption{Variables d'environnement principales (\texttt{.env.example})}
+\label{tab:env}
+\small
+\begin{tabularx}{\textwidth}{@{}p{4.8cm}X@{}}
+\toprule
+\textbf{Variable} & \textbf{Description} \\
+\midrule
+\rowcolor{rowgray}
+\texttt{DATABASE\_URL} & Connexion PostgreSQL (\texttt{agentpass}) \\
+\texttt{REDIS\_URL} & Connexion Redis pour BullMQ \\
+\rowcolor{rowgray}
+\texttt{JWT\_ACCESS\_SECRET} & Secret signature JWT access \\
+\texttt{JWT\_REFRESH\_SECRET} & Secret refresh tokens \\
+\rowcolor{rowgray}
+\texttt{VAULT\_MASTER\_KEY} & Clé maître AES-256-GCM (44 chars base64) \\
+\texttt{S3\_ENDPOINT} / \texttt{S3\_BUCKET} & Stockage MinIO/S3 \\
+\rowcolor{rowgray}
+\texttt{API\_PORT} / \texttt{API\_BASE\_URL} & API (défaut 3001) \\
+\texttt{NEXT\_PUBLIC\_API\_URL} & URL API pour le frontend \\
+\rowcolor{rowgray}
+\texttt{WORKER\_INTERNAL\_TOKEN} & Token worker (dev) \\
+\texttt{VENDOR\_SANDBOX\_URL} & URL sandbox (défaut 4202) \\
+\rowcolor{rowgray}
+\texttt{MAIL\_HOST} / \texttt{MAIL\_PORT} & SMTP Mailpit (1025) \\
+\texttt{ENABLE\_OPENAPI} & Activer Swagger (\texttt{/docs}) \\
+\rowcolor{rowgray}
+\texttt{NEXT\_PUBLIC\_ENABLE\_DEMO\_MODE} & Mode démo dashboard \\
+\texttt{API\_ALLOWED\_ORIGINS} & CORS origins autorisées \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\chapter{Commandes de développement et déploiement}
+
+\begin{table}[H]
+\centering
+\caption{Commandes pnpm principales}
+\label{tab:commands}
+\begin{tabularx}{\textwidth}{@{}p{4.2cm}X@{}}
+\toprule
+\textbf{Commande} & \textbf{Description} \\
+\midrule
+\rowcolor{rowgray}
+\texttt{pnpm install} & Installation dépendances monorepo \\
+\texttt{pnpm infra:up} & Docker Postgres, Redis, MinIO, Mailpit \\
+\rowcolor{rowgray}
+\texttt{pnpm db:reset} & Reset BDD + seed démo \\
+\texttt{pnpm dev} & API + worker + web en parallèle \\
+\rowcolor{rowgray}
+\texttt{pnpm test} & Suite Vitest complète \\
+\texttt{pnpm smoke} & Vérification services locaux \\
+\rowcolor{rowgray}
+\texttt{pnpm e2e:happy} & Parcours E2E heureux \\
+\texttt{pnpm demo:local} & Démo locale one-command \\
+\rowcolor{rowgray}
+\texttt{pnpm prod:check} & typecheck + lint + build \\
+\texttt{pnpm stack:hybrid:up} & Backend Docker + frontend local \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{URLs de services en développement local}
+\label{tab:urls}
+\begin{tabularx}{\textwidth}{@{}p{3.2cm}X@{}}
+\toprule
+\textbf{Service} & \textbf{URL} \\
+\midrule
+\rowcolor{rowgray}
+Dashboard & \url{http://localhost:3000} \\
+API & \url{http://localhost:3001} \\
+\rowcolor{rowgray}
+Readiness & \url{http://localhost:3001/health/ready} \\
+Swagger & \url{http://localhost:3001/docs} \\
+\rowcolor{rowgray}
+Vendor sandbox & \url{http://localhost:4202} \\
+Mailpit & \url{http://localhost:8025} \\
+\rowcolor{rowgray}
+MinIO console & \url{http://localhost:9001} \\
+\bottomrule
+\end{tabularx}
+\end{table}

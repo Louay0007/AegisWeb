@@ -1,4 +1,5 @@
 import type { ComponentType, SVGProps } from "react";
+import Link from "next/link";
 import { Box, RefreshCircle, WarningTriangle } from "iconoir-react";
 
 type DashboardIcon = ComponentType<SVGProps<SVGSVGElement>>;
@@ -46,6 +47,12 @@ export function StatePanel({
         <Button className="mt-5 h-10" onClick={action.onClick}>
           {action.label}
         </Button>
+      ) : null}
+      {state === "empty" ? (
+        <div className="mt-4 flex justify-center gap-4 text-sm">
+          <Link href="/app/getting-started" className="font-medium text-foreground underline-offset-4 hover:underline">Open quick start</Link>
+          <Link href="/app/help" className="font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">Read help</Link>
+        </div>
       ) : null}
     </div>
   );

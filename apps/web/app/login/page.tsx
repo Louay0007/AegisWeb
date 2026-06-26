@@ -13,7 +13,6 @@ export default function LoginPage() {
     <AuthShell
       eyebrow="Control gateway"
       title="Let agents work, but never without authority."
-      description="AegisWeb gives AI web agents a governed path into SaaS work: identity first, policy next, approval when risk rises, and receipts for every action."
     >
       <LoginForm />
     </AuthShell>

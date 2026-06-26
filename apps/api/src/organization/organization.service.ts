@@ -9,6 +9,7 @@ import { toOrganizationDto } from './organization.types.js';
 export type UpdateOrganizationInput = {
   name?: string;
   domain?: string;
+  billingEmail?: string | null;
 };
 
 @Injectable()
@@ -47,7 +48,8 @@ export class OrganizationService {
       where: { id: currentUser.organizationId },
       data: {
         name: input.name,
-        domain: input.domain
+        domain: input.domain,
+        billingEmail: input.billingEmail
       }
     });
 
@@ -58,7 +60,8 @@ export class OrganizationService {
       eventType: AuditEventType.ORGANIZATION_UPDATED,
       eventDataJson: {
         name: organization.name,
-        domain: organization.domain
+        domain: organization.domain,
+        billingEmail: organization.billingEmail
       }
     });
 

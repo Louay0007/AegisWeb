@@ -9,8 +9,10 @@ import {
 import { encryptSecret, EncryptedPayload, decryptSecret, PlainSecret, redactSecretLikeValues } from '@agentpass/vault';
 import { CredentialType, DomainError, DomainErrorCode } from '@agentpass/domain';
 import { AuditService } from '../audit/audit.service.js';
+import { PageQuery, pageToSkip, paginationMeta } from '../common/pagination.js';
 import { ConfigService } from '../config/config.service.js';
 import { DatabaseService } from '../database/database.service.js';
+import { MetricsService } from '../metrics/metrics.service.js';
 import { ContextUser } from '../request-context/types.js';
 import { toPrismaCredentialType } from './credential-type-mapping.js';
 import { toCredentialDto, toCredentialGrantDto } from './credentials.types.js';
@@ -43,21 +45,28 @@ export class CredentialsService {
   constructor(
     @Inject(DatabaseService) private readonly database: DatabaseService,
     @Inject(AuditService) private readonly audit: AuditService,
-    @Inject(ConfigService) private readonly config: ConfigService
+    @Inject(ConfigService) private readonly config: ConfigService,
+    @Inject(MetricsService) private readonly metrics: MetricsService
   ) {}
 
-  async list(organizationId: string | undefined) {
+  async list(organizationId: string | undefined, page: PageQuery) {
     if (!organizationId) {
       throw new DomainError(DomainErrorCode.PermissionDenied, 'Organization context is required.');
     }
 
-    const credentials = await this.database.client.credential.findMany({
-      where: { organizationId },
-      include: { grants: { orderBy: { createdAt: 'asc' } } },
-      orderBy: [{ createdAt: 'asc' }, { label: 'asc' }]
-    });
+    const where = { organizationId };
+    const [credentials, total] = await Promise.all([
+      this.database.client.credential.findMany({
+        where,
+        include: { grants: { orderBy: { createdAt: 'asc' } } },
+        orderBy: [{ createdAt: 'asc' }, { label: 'asc' }],
+        skip: pageToSkip(page),
+        take: page.limit
+      }),
+      this.database.client.credential.count({ where })
+    ]);
 
-    return { data: credentials.map(toCredentialDto) };
+    return { data: credentials.map(toCredentialDto), meta: paginationMeta(total, page) };
   }
 
   async get(organizationId: string | undefined, id: string) {
@@ -201,6 +210,7 @@ export class CredentialsService {
       agentId: grant.agentId,
       scope: grant.scope
     });
+    this.metrics.recordCredentialGrant('success');
 
     return { data: toCredentialGrantDto(grant) };
   }
@@ -300,11 +310,17 @@ export class CredentialsService {
       throw new DomainError(DomainErrorCode.PermissionDenied, 'Credential is not granted to the workflow agent.');
     }
 
-    const plaintext = decryptSecret(credential.encryptedPayload as EncryptedPayload, this.config.config.vaultMasterKey, {
-      organizationId: credential.organizationId,
-      credentialId: credential.id,
-      keyVersion: credential.encryptionVersion
-    });
+    let plaintext: PlainSecret;
+    try {
+      plaintext = decryptSecret(credential.encryptedPayload as EncryptedPayload, this.config.config.vaultMasterKey, {
+        organizationId: credential.organizationId,
+        credentialId: credential.id,
+        keyVersion: credential.encryptionVersion
+      });
+    } catch (error) {
+      this.metrics.recordCredentialDecrypt('failure');
+      throw error;
+    }
     await this.database.client.credential.update({
       where: { id: credential.id },
       data: { lastUsedAt: new Date() }
@@ -325,6 +341,7 @@ export class CredentialsService {
         returnedSecretShape: redactSecretLikeValues(plaintext) as Prisma.InputJsonValue
       }
     });
+    this.metrics.recordCredentialDecrypt('success');
 
     return {
       data: {

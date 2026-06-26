@@ -13,7 +13,6 @@ export default function RegisterPage() {
     <AuthShell
       eyebrow="Workspace setup"
       title="Start with a gate, not a password leak."
-      description="Create the first organization owner, then bring SaaS agent work under policy, approval, vault, and audit control."
     >
       <RegisterForm />
     </AuthShell>

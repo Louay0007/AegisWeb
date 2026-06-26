@@ -242,6 +242,11 @@ model Organization {
   name          String
   domain        String   @unique
   plan          String
+  billingEmail  String?  @map("billing_email")
+  stripeCustomerId String? @unique @map("stripe_customer_id")
+  stripeSubscriptionId String? @unique @map("stripe_subscription_id")
+  stripeSubscriptionStatus String? @map("stripe_subscription_status")
+  stripePriceId String? @map("stripe_price_id")
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
@@ -274,6 +279,15 @@ model User {
   updatedAt      DateTime   @updatedAt @map("updated_at")
   lastLoginAt    DateTime?  @map("last_login_at")
   disabledAt     DateTime?  @map("disabled_at")
+  emailVerifiedAt DateTime? @map("email_verified_at")
+  emailVerificationToken String? @map("email_verification_token")
+  emailVerificationSentAt DateTime? @map("email_verification_sent_at")
+  passwordResetToken String? @map("password_reset_token")
+  passwordResetExpiresAt DateTime? @map("password_reset_expires_at")
+  mfaSecret      String?    @map("mfa_secret")
+  mfaEnabled     Boolean    @default(false) @map("mfa_enabled")
+  mfaBackupCodes Json?      @map("mfa_backup_codes") @db.JsonB
+  notificationPreference UserNotificationPreference?
 
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   createdAgents  Agent[]      @relation("AgentCreatedBy")
@@ -286,7 +300,24 @@ model User {
   refreshTokens RefreshToken[]
 
   @@index([organizationId])
+  @@index([emailVerificationToken])
+  @@index([passwordResetToken])
   @@map("users")
+}
+
+model UserNotificationPreference {
+  id               String   @id @default(uuid()) @db.Uuid
+  userId           String   @unique @map("user_id") @db.Uuid
+  approvalRequests Boolean  @default(true) @map("approval_requests")
+  runCompletions   Boolean  @default(false) @map("run_completions")
+  failures         Boolean  @default(true)
+  slackWebhookUrl  String?  @map("slack_webhook_url")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_notification_preferences")
 }
 
 model Agent {

@@ -104,7 +104,7 @@ export function redactSecretLikeValues(value: unknown): unknown {
   return value;
 }
 
-export function assertValidMasterKey(key: string): void {
+export function assertValidMasterKey(key: string, options: { production?: boolean } = {}): void {
   if (typeof key !== 'string' || key.length < 32) {
     throw new Error('Vault master key must be at least 32 characters or a base64-encoded 32-byte key.');
   }
@@ -116,6 +116,10 @@ export function assertValidMasterKey(key: string): void {
     if (safeEqual(encodedAgain, normalized)) {
       return;
     }
+  }
+
+  if (options.production) {
+    throw new Error('Vault master key must be a base64-encoded 32-byte key in production.');
   }
 }
 

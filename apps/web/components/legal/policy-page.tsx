@@ -174,7 +174,7 @@ export function PolicyPage({ policy }: { policy: PolicyPageContent }) {
                         href={`#${section.id}`}
                         className="group grid grid-cols-[2rem_1fr] items-center gap-2 px-2 py-2 text-sm text-muted-foreground transition-colors hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       >
-                        <span className="font-mono text-xs tabular-nums text-muted-foreground/70">
+                        <span className="font-mono text-xs tabular-nums text-muted-foreground">
                           {String(index + 1).padStart(2, "0")}
                         </span>
                         <span className="text-pretty">{section.title}</span>

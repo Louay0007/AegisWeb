@@ -3,7 +3,9 @@
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 import { useMemo } from "react";
 
-import { ApiError, isApiError } from "@/lib/api/api-errors";
+import { ApiError, errorMessage, isApiError } from "@/lib/api/api-errors";
+import type { PaginationMeta } from "@/lib/api/pagination";
+import type { UserDto } from "@/lib/api/mappers";
 import { useAuthSession } from "@/lib/auth/auth-session";
 import {
   agents as agentsFixture,
@@ -46,6 +48,15 @@ export type ResourceHookResult<T> = {
   reload: () => Promise<unknown>;
 };
 
+export type PaginatedHookResult<T> = {
+  items: T[];
+  meta: PaginationMeta;
+  isLoading: boolean;
+  error: string | undefined;
+  updatedAt?: number;
+  reload: () => Promise<unknown>;
+};
+
 function defaultIsEmpty<T>(data: T): boolean {
   return Array.isArray(data) ? data.length === 0 : !data;
 }
@@ -62,7 +73,7 @@ function normalizeApiError(error: unknown): ApiError {
 
 function toResourceState<T>(
   result: UseQueryResult<T, Error>,
-  fallbackData: T,
+  _fallbackData: T,
 ): ResourceStatus<T> {
   if (result.isPending && !result.data) {
     return { status: "loading" };
@@ -71,7 +82,6 @@ function toResourceState<T>(
     return {
       status: "error",
       error: normalizeApiError(result.error),
-      fallbackData,
     };
   }
   const data = result.data as T;
@@ -93,8 +103,7 @@ function useShouldUseFixture(): boolean {
   }
   return (
     isFixtureMode() ||
-    state.status === "demo" ||
-    state.status === "unauthenticated"
+    state.status === "demo"
   );
 }
 
@@ -318,6 +327,115 @@ export function useAuditEvents(
     enabled: !fixture,
   });
   return useCommonQueryResult(result, auditEventsFixture, fixture);
+}
+
+export function usePaginatedAuditEvents(page: number, limit: number = 50): PaginatedHookResult<AuditEventFixture> {
+  const fixture = useShouldUseFixture();
+  const result = useQuery({ ...resourceQueries.audit.paginatedList(page, limit), enabled: !fixture });
+  return fixture ? usePaginatedFixture(auditEventsFixture, page, limit) : useApiPaginatedResult(result, page, limit);
+}
+
+// -- Paginated hooks -------------------------------------------------------
+
+function usePaginatedFixture<T>(
+  fixtureData: T[],
+  page: number,
+  limit: number,
+): PaginatedHookResult<T> {
+  return useMemo(() => {
+    const total = fixtureData.length;
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+    const start = (page - 1) * limit;
+      return {
+        items: fixtureData.slice(start, start + limit),
+        meta: { total, page, limit, totalPages },
+        isLoading: false,
+        error: undefined,
+        updatedAt: Date.now(),
+        reload: async () => {},
+      };
+  }, [fixtureData, page, limit]);
+}
+
+function useApiPaginatedResult<T>(
+  result: UseQueryResult<{ data: T[]; meta: PaginationMeta }, Error>,
+  page: number,
+  limit: number,
+): PaginatedHookResult<T> {
+  return useMemo(() => {
+    if (result.isError) {
+      return {
+        items: [],
+        meta: { total: 0, page, limit, totalPages: 0 },
+        isLoading: false,
+        error: errorMessage(result.error),
+        updatedAt: result.dataUpdatedAt || undefined,
+        reload: async () => result.refetch(),
+      };
+    }
+    return {
+      items: result.data?.data ?? [],
+      meta: result.data?.meta ?? { total: 0, page, limit, totalPages: 0 },
+      isLoading: result.isPending && !result.data,
+      error: undefined,
+      updatedAt: result.dataUpdatedAt || undefined,
+      reload: async () => result.refetch(),
+    };
+  }, [result, page, limit]);
+}
+
+export function usePaginatedAgents(page: number, limit: number = 20): PaginatedHookResult<AgentFixture> {
+  const fixture = useShouldUseFixture();
+  const result = useQuery({ ...resourceQueries.agents.paginatedList(page, limit), enabled: !fixture });
+  return fixture ? usePaginatedFixture(agentsFixture, page, limit) : useApiPaginatedResult(result, page, limit);
+}
+
+export function usePaginatedVendors(page: number, limit: number = 20): PaginatedHookResult<VendorFixture> {
+  const fixture = useShouldUseFixture();
+  const result = useQuery({ ...resourceQueries.vendors.paginatedList(page, limit), enabled: !fixture });
+  return fixture ? usePaginatedFixture(vendorsFixture, page, limit) : useApiPaginatedResult(result, page, limit);
+}
+
+export function usePaginatedCredentials(page: number, limit: number = 20): PaginatedHookResult<CredentialFixture> {
+  const fixture = useShouldUseFixture();
+  const result = useQuery({ ...resourceQueries.credentials.paginatedList(page, limit), enabled: !fixture });
+  return fixture ? usePaginatedFixture(credentialsFixture, page, limit) : useApiPaginatedResult(result, page, limit);
+}
+
+export function usePaginatedPolicies(page: number, limit: number = 20): PaginatedHookResult<PolicyFixture> {
+  const fixture = useShouldUseFixture();
+  const result = useQuery({ ...resourceQueries.policies.paginatedList(page, limit), enabled: !fixture });
+  return fixture ? usePaginatedFixture(policiesFixture, page, limit) : useApiPaginatedResult(result, page, limit);
+}
+
+export function usePaginatedWorkflows(page: number, limit: number = 20): PaginatedHookResult<WorkflowFixture> {
+  const fixture = useShouldUseFixture();
+  const result = useQuery({ ...resourceQueries.workflows.paginatedList(page, limit), enabled: !fixture });
+  return fixture ? usePaginatedFixture(workflowsFixture, page, limit) : useApiPaginatedResult(result, page, limit);
+}
+
+export function usePaginatedWorkflowRuns(page: number, limit: number = 20): PaginatedHookResult<WorkflowRunFixture> {
+  const fixture = useShouldUseFixture();
+  const result = useQuery({ ...resourceQueries.workflowRuns.paginatedList(page, limit), enabled: !fixture });
+  return fixture ? usePaginatedFixture(workflowRunsFixture, page, limit) : useApiPaginatedResult(result, page, limit);
+}
+
+export function usePaginatedApprovals(page: number, limit: number = 20): PaginatedHookResult<ApprovalFixture> {
+  const fixture = useShouldUseFixture();
+  const result = useQuery({ ...resourceQueries.approvals.paginatedList(page, limit), enabled: !fixture });
+  return fixture ? usePaginatedFixture(approvalsFixture, page, limit) : useApiPaginatedResult(result, page, limit);
+}
+
+export function usePaginatedReceipts(page: number, limit: number = 20): PaginatedHookResult<ReceiptFixture> {
+  const fixture = useShouldUseFixture();
+  const result = useQuery({ ...resourceQueries.receipts.paginatedList(page, limit), enabled: !fixture });
+  return fixture ? usePaginatedFixture(receiptsFixture, page, limit) : useApiPaginatedResult(result, page, limit);
+}
+
+export function usePaginatedUsers(page: number, limit: number = 20): PaginatedHookResult<UserDto> {
+  const fixture = useShouldUseFixture();
+  const result = useQuery({ ...resourceQueries.organization.paginatedUsers(page, limit), enabled: !fixture });
+  return fixture ? usePaginatedFixture([], page, limit) : useApiPaginatedResult(result, page, limit);
 }
 
 // -- Organization / Users --------------------------------------------------

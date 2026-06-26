@@ -22,6 +22,7 @@ export const sandboxUsers = [
 
 export function latestInvoiceText(): string {
   return [
+    '%PDF-1.4',
     'AgentPass Local Vendor Sandbox Invoice',
     `Invoice: ${sandboxVendor.invoiceId}`,
     `Vendor: ${sandboxVendor.vendorName}`,

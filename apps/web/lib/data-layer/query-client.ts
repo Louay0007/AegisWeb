@@ -1,7 +1,7 @@
 import { QueryClient } from "@tanstack/react-query";
 
 import { isApiError } from "@/lib/api/api-errors";
-import { isFixtureMode, readAccessToken } from "@/lib/data-layer/feature-flags";
+import { isFixtureMode } from "@/lib/data-layer/feature-flags";
 
 /**
  * Build a fully-configured QueryClient for the AegisWeb dashboard.
@@ -30,9 +30,9 @@ export function createQueryClient(): QueryClient {
           return failureCount < 2;
         },
         retryDelay: (attempt: number) => Math.min(1_000 * 2 ** attempt, 8_000),
-        // In demo / unauthenticated mode we want a deterministic render from
-        // the fixture so we disable network queries entirely.
-        enabled: () => !isFixtureMode() && Boolean(readAccessToken()),
+        // In fixture mode we want a deterministic render from bundled data.
+        // Authentication is enforced by the BFF proxy, not JS token storage.
+        enabled: () => !isFixtureMode(),
         refetchOnWindowFocus: true,
         refetchOnReconnect: true,
       },

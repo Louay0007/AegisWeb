@@ -11,14 +11,9 @@ export class RequestContextMiddleware implements NestMiddleware {
 
   use(request: RequestContextCarrier, response: ResponseHeaderWriter, next: NextFunction): void {
     const requestId = readHeader(request.headers, 'x-request-id') ?? `req_${randomUUID()}`;
-    const userId = readHeader(request.headers, 'x-user-id');
-    const organizationId = readHeader(request.headers, 'x-organization-id');
-    const role = readHeader(request.headers, 'x-user-role');
 
     const context = {
-      requestId,
-      organizationId,
-      user: userId && organizationId ? { id: userId, organizationId, role } : undefined
+      requestId
     };
 
     request.requestContext = context;

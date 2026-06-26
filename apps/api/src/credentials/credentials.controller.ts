@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Inject, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Inject, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { z } from 'zod';
 import {
   CREDENTIAL_TYPES,
@@ -7,8 +7,9 @@ import {
   DomainErrorCode,
   Permission
 } from '@agentpass/domain';
-import { InternalRoute, RequirePermission } from '../authorization/authorization-metadata.js';
+import { InternalRoute, RequirePermission, RequireStepUp } from '../authorization/authorization-metadata.js';
 import { InternalWorkerGuard } from '../authorization/internal-worker.guard.js';
+import { parsePageQuery, QueryRecord } from '../common/pagination.js';
 import { CurrentOrganizationId } from '../request-context/current-organization-id.decorator.js';
 import { CurrentUser } from '../request-context/current-user.decorator.js';
 import { ContextUser } from '../request-context/types.js';
@@ -52,11 +53,12 @@ export class CredentialsController {
 
   @RequirePermission(Permission.CredentialRead)
   @Get()
-  list(@CurrentOrganizationId() organizationId: string | undefined) {
-    return this.credentialsService.list(organizationId);
+  list(@CurrentOrganizationId() organizationId: string | undefined, @Query() query: QueryRecord) {
+    return this.credentialsService.list(organizationId, parsePageQuery(query));
   }
 
   @RequirePermission(Permission.CredentialCreate)
+  @RequireStepUp()
   @Post()
   create(@CurrentUser() currentUser: ContextUser | undefined, @Body() body: unknown) {
     const parsed = createCredentialSchema.safeParse(body);

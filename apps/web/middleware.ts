@@ -1,7 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { env } from "node:process";
 
-const SESSION_MARKER_COOKIE = "aegisweb_session";
+const SESSION_MARKER_COOKIE = "__Host-aegisweb_session";
 
 export function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
@@ -46,7 +45,7 @@ function withSecurityHeaders(response: NextResponse, nonce: string) {
 }
 
 function apiOriginFromEnv() {
-  const apiUrl = env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
   try {
     return new URL(apiUrl).origin;
   } catch {

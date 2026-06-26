@@ -7,12 +7,11 @@ import * as apiClient from "@/lib/api/api-client";
 import { useAgents } from "@/lib/data-layer/resource-hooks";
 import { useCreateAgent } from "@/lib/data-layer/mutations";
 import { queryKeys } from "@/lib/data-layer/query-keys";
-import { agents as fixtureAgents } from "@/lib/fixtures/dashboard";
 
 const authState = vi.hoisted(() => ({
   current: {
     status: "authenticated",
-    session: { accessToken: "t", user: { role: "OWNER" } },
+    session: { user: { role: "OWNER" } },
   },
 }));
 
@@ -32,7 +31,7 @@ describe("resource hooks (caching + deduping)", () => {
     vi.unstubAllEnvs();
     authState.current = {
       status: "authenticated",
-      session: { accessToken: "t", user: { role: "OWNER" } },
+      session: { user: { role: "OWNER" } },
     };
   });
 
@@ -114,14 +113,14 @@ describe("resource hooks (caching + deduping)", () => {
 });
 
 describe("fixture fallback", () => {
-  it("returns bundled fixture data in unauthenticated mode", async () => {
+  it("does not return bundled fixture data in unauthenticated mode", async () => {
     authState.current = { status: "unauthenticated" };
+    vi.spyOn(apiClient, "apiGet").mockResolvedValue([]);
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const wrapper = makeWrapper(client);
     const { result } = renderHook(() => useAgents(), { wrapper });
-    await waitFor(() => expect(result.current.state.status).toBe("success"));
-    expect(result.current.state.data).toEqual(fixtureAgents);
-    expect(result.current.state.source).toBe("fixture");
+    await waitFor(() => expect(result.current.state.status).toBe("empty"));
+    expect(result.current.state.source).toBe("api");
   });
 
   it("does not replace authenticated api errors with fixture records", async () => {
@@ -135,7 +134,7 @@ describe("fixture fallback", () => {
     await waitFor(() => expect(result.current.state.status).toBe("error"));
     expect(result.current.state).toMatchObject({
       status: "error",
-      fallbackData: fixtureAgents,
     });
+    expect(result.current.state).not.toHaveProperty("fallbackData");
   });
 });

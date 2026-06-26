@@ -242,7 +242,7 @@ describe('phase 13 vault library and credentials module', () => {
         }
       })
     ).toEqual({
-      username: 'finance@example.dev',
+      username: '[REDACTED]',
       password: '[REDACTED]',
       nested: {
         apiToken: '[REDACTED]',

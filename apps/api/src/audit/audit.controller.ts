@@ -6,6 +6,8 @@ import { RequirePermission } from '../authorization/authorization-metadata.js';
 import { CurrentOrganizationId } from '../request-context/current-organization-id.decorator.js';
 import { AuditQueryService } from './audit-query.service.js';
 import { AuditEventListQuery } from './audit.types.js';
+import { AuditExportService } from './audit-export.service.js';
+import { AuditChainVerificationService } from './audit-chain-verification.service.js';
 
 type QueryValue = string | string[] | undefined;
 type QueryRecord = Record<string, QueryValue>;
@@ -24,11 +26,25 @@ const querySchema = z.object({
 @RequirePermission(Permission.AuditRead)
 @Controller('audit-events')
 export class AuditController {
-  constructor(@Inject(AuditQueryService) private readonly auditQuery: AuditQueryService) {}
+  constructor(
+    @Inject(AuditQueryService) private readonly auditQuery: AuditQueryService,
+    @Inject(AuditExportService) private readonly auditExport: AuditExportService,
+    @Inject(AuditChainVerificationService) private readonly auditVerification: AuditChainVerificationService
+  ) {}
 
   @Get()
   async list(@CurrentOrganizationId() organizationId: string | undefined, @Query() query: QueryRecord) {
     return this.auditQuery.list(organizationId, parseQuery(query));
+  }
+
+  @Get('export')
+  async export(@CurrentOrganizationId() organizationId: string | undefined) {
+    return this.auditExport.exportOrganizationEvents(organizationId);
+  }
+
+  @Get('verify')
+  async verify(@CurrentOrganizationId() organizationId: string | undefined) {
+    return this.auditVerification.verifyOrganizationChain(organizationId);
   }
 
   @Get(':id')

@@ -1,0 +1,195 @@
+% =============================================================
+% CONCLUSION GÉNÉRALE
+% =============================================================
+\clearpage
+\chapter*{Conclusion Générale}
+\addcontentsline{toc}{chapter}{Conclusion Générale}
+\markboth{Conclusion Générale}{Conclusion Générale}
+
+\begin{chapintro}
+Ce projet de fin d'études nous a offert l'opportunité de concevoir et
+de développer, de bout en bout, une plateforme de gouvernance pour agents
+IA agissant sur le web — un domaine émergent à l'intersection de la
+cybersécurité, de l'automatisation et de l'intelligence artificielle.
+\end{chapintro}
+
+\medskip
+\noindent\textbf{\large Bilan du projet}
+
+\medskip
+Au terme de ce travail, nous avons conçu et développé \textbf{AegisWeb},
+une plateforme de confiance pour agents IA web répondant au principe
+\textit{«~Permission before autonomy~»}. L'ensemble des objectifs initiaux
+a été atteint :
+
+\begin{itemize}[leftmargin=1.8cm, itemsep=4pt]
+  \item Un \textbf{monorepo TypeScript} structuré (4 applications, 7
+    bibliothèques partagées) avec pnpm workspaces.
+  \item Une \textbf{API NestJS} modulaire (20+ modules) avec auth Argon2id,
+    RBAC à 5 rôles et isolation multi-tenant.
+  \item Un \textbf{modèle de données Prisma} en 17 tables avec migrations
+    versionnées et seed de démonstration riche.
+  \item Un \textbf{coffre-fort AES-256-GCM} et un \textbf{moteur de
+    politiques pur} évaluant risques et approbations.
+  \item Un \textbf{worker BullMQ + Playwright} exécutant trois workflows
+    SaaS procurement avec preuves et receipts.
+  \item Un \textbf{dashboard Next.js 16} evidence-first pour la gestion
+    opérationnelle et l'approbation humaine.
+  \item Une \textbf{infrastructure Docker Compose} reproductible et une
+    suite de \textbf{195 tests Vitest} validant le MVP.
+\end{itemize}
+
+Sur le plan personnel, ce projet nous a permis de consolider nos
+compétences en architecture logicielle distribuée, en sécurité
+applicative (vault, audit chaîné, CSP), en développement fullstack
+TypeScript (NestJS + Next.js) et en automatisation navigateur contrôlée.
+Il nous a également sensibilisés aux enjeux de gouvernance des agents IA
+dans un contexte entreprise.
+
+\medskip
+\noindent\textbf{\large Difficultés rencontrées}
+
+\medskip
+Ce projet n'a pas été exempt de difficultés :
+\begin{itemize}[leftmargin=1.8cm, itemsep=3pt]
+  \item L'\textbf{orchestration worker/API} (tokens HMAC, déchiffrement
+    scopé, reprise après approbation) a exigé une conception rigoureuse
+    des files BullMQ idempotentes.
+  \item Le \textbf{runtime Playwright contrôlé} (allowlist, blocage
+    réseau privé, masquage screenshots) a nécessité des garde-fous
+    progressifs et des tests dédiés.
+  \item La \textbf{cohérence frontend/backend} (polling runs, refresh
+    token, middleware session) a demandé une couche données React Query
+    structurée.
+  \item Le \textbf{modèle de sécurité global} (redaction secrets, hash
+    audit, isolation org) a requis des tests de régression continus.
+\end{itemize}
+
+\medskip
+\noindent\textbf{\large Perspectives et améliorations futures}
+
+\medskip
+Plusieurs axes d'évolution sont envisagés :
+\begin{itemize}[leftmargin=1.8cm, itemsep=3pt]
+  \item \textbf{Passage production}~: checklist pilote
+    (\texttt{SECURITY\_AUDIT.md}), Postgres/Redis managés, S3 privé,
+    SMTP réel, déploiement Render documenté.
+  \item \textbf{BFF HttpOnly}~: migration du stockage access token vers
+    cookies HttpOnly pour réduire la surface XSS.
+  \item \textbf{mTLS worker}~: authentification mutuelle entre worker et
+    API interne en production.
+  \item \textbf{Connecteurs vendors réels}~: extension au-delà du sandbox
+    vers des portails SaaS réels avec step-up auth.
+  \item \textbf{Observabilité}~: métriques Prometheus, tracing distribué
+    des runs workflow.
+  \item \textbf{Multi-région}~: réplication audit et stockage preuves pour
+    conformité réglementaire.
+\end{itemize}
+
+% =============================================================
+% BIBLIOGRAPHIE ET NETOGRAPHIE
+% =============================================================
+\clearpage
+\chapter*{Bibliographie et Netographie}
+\addcontentsline{toc}{chapter}{Bibliographie et Netographie}
+\markboth{Bibliographie et Netographie}{Bibliographie et Netographie}
+
+\section*{Bibliographie}
+
+\begin{enumerate}[label={[\arabic*]}, leftmargin=1.8cm, itemsep=5pt]
+
+  \item \textsc{Fowler}, M.,
+    \textit{Patterns of Enterprise Application Architecture},
+    Addison-Wesley, 2002.
+
+  \item \textsc{Newman}, S.,
+    \textit{Building Microservices},
+    2\textsuperscript{e}~édition, O'Reilly Media, 2021.
+
+  \item \textsc{Martin}, R.~C.,
+    \textit{Clean Architecture: A Craftsman's Guide to Software
+    Structure and Design}, Prentice Hall, 2017.
+
+  \item \textsc{Richardson}, L. et \textsc{Ruby}, S.,
+    \textit{RESTful Web Services}, O'Reilly Media, 2007.
+
+  \item \textsc{Gamma}, E. et al.,
+    \textit{Design Patterns: Elements of Reusable Object-Oriented
+    Software}, Addison-Wesley, 1994.
+
+  \item \textsc{Anderson}, R.~J.,
+    \textit{Security Engineering},
+    3\textsuperscript{e}~édition, Wiley, 2020.
+
+  \item \textsc{Rubin}, K.~S.,
+    \textit{Essential Scrum: A Practical Guide to the Most Popular
+    Agile Process}, Addison-Wesley, 2012.
+
+\end{enumerate}
+
+\section*{Netographie}
+
+\begin{enumerate}[label={[\arabic*]}, leftmargin=1.8cm, itemsep=5pt,
+  resume]
+
+  \item Documentation NestJS,
+    \url{https://docs.nestjs.com/},
+    [Consulté le : 15/05/2026].
+
+  \item Documentation Next.js,
+    \url{https://nextjs.org/docs},
+    [Consulté le : 15/05/2026].
+
+  \item Documentation Prisma,
+    \url{https://www.prisma.io/docs},
+    [Consulté le : 10/05/2026].
+
+  \item Documentation BullMQ,
+    \url{https://docs.bullmq.io/},
+    [Consulté le : 12/05/2026].
+
+  \item Documentation Playwright,
+    \url{https://playwright.dev/docs/intro},
+    [Consulté le : 18/05/2026].
+
+  \item Documentation PostgreSQL 17,
+    \url{https://www.postgresql.org/docs/17/},
+    [Consulté le : 08/05/2026].
+
+  \item OWASP Top Ten 2021,
+    \url{https://owasp.org/www-project-top-ten/},
+    [Consulté le : 20/05/2026].
+
+  \item OWASP ASVS,
+    \url{https://owasp.org/www-project-application-security-verification-standard/},
+    [Consulté le : 20/05/2026].
+
+  \item Documentation TanStack Query,
+    \url{https://tanstack.com/query/latest},
+    [Consulté le : 14/05/2026].
+
+  \item Documentation Docker Compose,
+    \url{https://docs.docker.com/compose/},
+    [Consulté le : 05/05/2026].
+
+  \item Documentation Redis,
+    \url{https://redis.io/docs/},
+    [Consulté le : 05/05/2026].
+
+  \item RFC 9106 — Argon2 Memory-Hard Function,
+    \url{https://www.rfc-editor.org/rfc/rfc9106},
+    [Consulté le : 10/05/2026].
+
+  \item NIST SP 800-38D — GCM Mode,
+    \url{https://csrc.nist.gov/publications/detail/sp/800-38d/final},
+    [Consulté le : 10/05/2026].
+
+  \item Documentation Vitest,
+    \url{https://vitest.dev/},
+    [Consulté le : 22/05/2026].
+
+  \item Dépôt AegisWeb — README et documentation technique,
+    \url{https://github.com/},
+    [Consulté le : 22/06/2026].
+
+\end{enumerate}

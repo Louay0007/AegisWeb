@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
 import { ArrowRight, Bot, CircleCheck, KeyRound, ReceiptText, ShieldCheck, Workflow } from "lucide-react";
 
 import { PageHeader } from "@/components/app-shell/page-header";
 import { Button } from "@/components/ui/button";
-import { type AegisSession, readSession } from "./auth-client";
+import { useAuthSession } from "@/lib/auth/auth-session";
 
 const metrics = [
   { label: "Agents scoped", value: "12", icon: Bot },
@@ -16,11 +16,8 @@ const metrics = [
 ];
 
 export function SessionHome() {
-  const [session, setSession] = useState<AegisSession | null>(null);
-
-  useEffect(() => {
-    setSession(readSession());
-  }, []);
+  const { state } = useAuthSession();
+  const session = state.status === "authenticated" || state.status === "demo" ? state.session : null;
 
   const firstName = useMemo(() => session?.user.name.split(" ")[0] ?? "there", [session]);
 

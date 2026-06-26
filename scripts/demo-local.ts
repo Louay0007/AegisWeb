@@ -11,7 +11,12 @@ async function main() {
     start('api', ['dev:api']),
     start('worker', ['dev:worker']),
     start('vendor', ['dev:vendor']),
-    start('web', ['dev:web'])
+    start('web', ['dev:web'], {
+      NEXT_PUBLIC_API_URL: 'http://localhost:3001',
+      NEXT_PUBLIC_ALLOW_LOCAL_API_URL: 'true',
+      NEXT_PUBLIC_ENABLE_DEMO_MODE: 'false',
+      NEXT_PUBLIC_ENABLE_FIXTURE_FALLBACK: 'false'
+    })
   ];
 
   process.on('SIGINT', () => {
@@ -29,8 +34,8 @@ function run(command: string, args: string[]) {
   });
 }
 
-function start(name: string, script: string[]) {
-  const child = spawn('pnpm', script, { stdio: 'inherit', shell: true });
+function start(name: string, script: string[], env: NodeJS.ProcessEnv = {}) {
+  const child = spawn('pnpm', script, { stdio: 'inherit', shell: true, env: { ...process.env, ...env } });
   child.on('exit', (code) => {
     if (code && code !== 0) {
       console.error(`[${name}] exited with ${code}`);

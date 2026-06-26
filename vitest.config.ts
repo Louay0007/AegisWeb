@@ -5,6 +5,8 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     include: ['tests/**/*.spec.ts', 'apps/**/*.spec.{ts,tsx}', 'libs/**/*.spec.ts'],
+    exclude: ['tests/e2e/**'],
+    setupFiles: ['./apps/web/test/setup.ts'],
     testTimeout: 15000,
     environmentMatchGlobs: [
       ['apps/web/**/*.spec.{ts,tsx}', 'jsdom'],

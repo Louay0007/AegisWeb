@@ -10,16 +10,9 @@ import {
   type ReactNode,
 } from "react";
 
-import { apiPost, apiRequest, refreshAccessToken } from "@/lib/api/api-client";
+import { apiPost, apiRequest } from "@/lib/api/api-client";
 import { ApiError, isApiError } from "@/lib/api/api-errors";
-import {
-  clearStoredSession,
-  readAccessToken,
-  readLegacySession,
-  saveAccessToken,
-  saveLegacySession,
-} from "@/lib/auth/token-storage";
-import { isDemoModeEnabled, isProductionRuntime } from "@/lib/runtime-config";
+import { isDemoModeEnabled } from "@/lib/runtime-config";
 
 export type AuthMode = "api" | "demo";
 
@@ -32,11 +25,13 @@ export type AuthUser = {
   name: string;
   role: string;
   status: string;
+  emailVerifiedAt?: string | null;
+  mfaEnabled?: boolean;
+  mfaRequired?: boolean;
 };
 
 export type AuthSession = {
   mode: AuthMode;
-  accessToken: string | null;
   user: AuthUser;
 };
 
@@ -62,83 +57,18 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthSessionState>({ status: "booting" });
 
   const boot = useCallback(async () => {
-    const legacy = readLegacySession() as Partial<AuthSession> | null;
-
-    if (isDemoModeEnabled() && legacy?.mode === "demo" && legacy.user) {
-      setState({
-        status: "demo",
-        session: normalizeSession(legacy as AuthSession),
-      });
-      return;
-    }
-
-    const token = readAccessToken() ?? (!isProductionRuntime() ? legacy?.accessToken : null) ?? null;
-    if (!token) {
-      const refreshed = await refreshAccessToken();
-      if (!refreshed) {
-        clearStoredSession();
-        setState({ status: "unauthenticated" });
-        return;
-      }
-
-      try {
-        const me = await apiRequest<{ user: AuthUser }>(
-          "/auth/me",
-          {},
-          { retry: false },
-        );
-        const session: AuthSession = {
-          mode: "api",
-          accessToken: refreshed,
-          user: me.user,
-        };
-        saveLegacySession(session);
-        setState({ status: "authenticated", session });
-        return;
-      } catch {
-        clearStoredSession();
-        setState({ status: "unauthenticated" });
-      }
-      return;
-    }
-
     try {
-      saveAccessToken(token);
       const me = await apiRequest<{ user: AuthUser }>(
         "/auth/me",
         {},
-        { retry: true },
+        { retry: false },
       );
       const session: AuthSession = {
         mode: "api",
-        accessToken: readAccessToken(),
         user: me.user,
       };
-      saveLegacySession(session);
       setState({ status: "authenticated", session });
     } catch (error) {
-      const refreshed = await refreshAccessToken();
-      if (refreshed) {
-        try {
-          const me = await apiRequest<{ user: AuthUser }>(
-            "/auth/me",
-            {},
-            { retry: false },
-          );
-          const session: AuthSession = {
-            mode: "api",
-            accessToken: refreshed,
-            user: me.user,
-          };
-          saveLegacySession(session);
-          setState({ status: "authenticated", session });
-          return;
-        } catch {
-          // Fall through to unauthenticated state.
-        }
-      }
-
-      clearStoredSession();
       if (isApiError(error) && error.status && error.status >= 500) {
         setState({
           status: "error",
@@ -156,26 +86,22 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
   }, [boot]);
 
   const signIn = useCallback(async (email: string, password: string) => {
-    const data = await apiPost<{ accessToken: string; user: AuthUser }>(
+    const data = await apiPost<{ user: AuthUser; mfaRequired?: boolean; tempToken?: string }>(
       "/auth/login",
       { email, password },
     );
-    saveAccessToken(data.accessToken);
+    if (data.mfaRequired && data.tempToken) {
+      throw new MfaRequiredError(data.tempToken);
+    }
     const session: AuthSession = {
       mode: "api",
-      accessToken: data.accessToken,
       user: data.user,
     };
-    saveLegacySession(session);
     setState({ status: "authenticated", session });
     return session;
   }, []);
 
   const saveApiSession = useCallback((session: AuthSession) => {
-    if (session.accessToken) {
-      saveAccessToken(session.accessToken);
-    }
-    saveLegacySession(session);
     setState({ status: "authenticated", session });
   }, []);
 
@@ -183,7 +109,6 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
     if (!isDemoModeEnabled()) {
       throw new Error("Demo mode is disabled.");
     }
-    saveLegacySession(session);
     setState({ status: "demo", session });
   }, []);
 
@@ -194,7 +119,6 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
       // Local sign-out must still clear state even if the API is offline.
     }
 
-    clearStoredSession();
     setState({ status: "unauthenticated" });
   }, []);
 
@@ -222,15 +146,8 @@ export function useAuthSession() {
   return context;
 }
 
-function normalizeSession(session: AuthSession): AuthSession {
-  return {
-    ...session,
-    accessToken: session.accessToken ?? null,
-    user: session.user,
-  };
-}
-
 export function authErrorMessage(error: unknown) {
+  if (error instanceof MfaRequiredError) return "Multi-factor authentication is required.";
   if (error instanceof ApiError) {
     return error.requestId
       ? `${error.message} Request ${error.requestId}.`
@@ -238,4 +155,11 @@ export function authErrorMessage(error: unknown) {
   }
 
   return error instanceof Error ? error.message : "Authentication failed.";
+}
+
+export class MfaRequiredError extends Error {
+  constructor(readonly tempToken: string) {
+    super("Multi-factor authentication is required.");
+    this.name = "MfaRequiredError";
+  }
 }

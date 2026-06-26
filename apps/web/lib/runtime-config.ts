@@ -35,7 +35,22 @@ export function isLocalApiUrlAllowed() {
   return publicFlag("NEXT_PUBLIC_ALLOW_LOCAL_API_URL") === true;
 }
 
+function assertProductionPublicFlags() {
+  if (!isProductionRuntime()) {
+    return;
+  }
+
+  if (publicFlag("NEXT_PUBLIC_ENABLE_DEMO_MODE") === true) {
+    throw new Error("NEXT_PUBLIC_ENABLE_DEMO_MODE must be false in production.");
+  }
+
+  if (publicFlag("NEXT_PUBLIC_ENABLE_FIXTURE_FALLBACK") === true) {
+    throw new Error("NEXT_PUBLIC_ENABLE_FIXTURE_FALLBACK must be false in production.");
+  }
+}
+
 export function apiUrlFromEnv() {
+  assertProductionPublicFlags();
   const url = process.env.NEXT_PUBLIC_API_URL;
 
   if (isProductionRuntime()) {
@@ -44,6 +59,9 @@ export function apiUrlFromEnv() {
     }
 
     const parsed = new URL(url);
+    if (!url.startsWith("https://")) {
+      throw new Error("NEXT_PUBLIC_API_URL must use HTTPS in production.");
+    }
     if (!isLocalApiUrlAllowed() && (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1")) {
       throw new Error("NEXT_PUBLIC_API_URL must not point to localhost in production.");
     }

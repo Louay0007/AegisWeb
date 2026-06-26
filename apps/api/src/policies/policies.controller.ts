@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Inject, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Get, Inject, Param, Patch, Post, Query } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import {
@@ -15,7 +15,8 @@ import {
   RiskSignal,
   UserRole
 } from '@agentpass/domain';
-import { RequirePermission, RequireRole } from '../authorization/authorization-metadata.js';
+import { RequirePermission, RequireRole, RequireStepUp } from '../authorization/authorization-metadata.js';
+import { parsePageQuery, QueryRecord } from '../common/pagination.js';
 import { CurrentOrganizationId } from '../request-context/current-organization-id.decorator.js';
 import { CurrentUser } from '../request-context/current-user.decorator.js';
 import { ContextUser } from '../request-context/types.js';
@@ -77,8 +78,8 @@ export class PoliciesController {
 
   @RequirePermission(Permission.PolicyRead)
   @Get()
-  list(@CurrentOrganizationId() organizationId: string | undefined) {
-    return this.policiesService.list(organizationId);
+  list(@CurrentOrganizationId() organizationId: string | undefined, @Query() query: QueryRecord) {
+    return this.policiesService.list(organizationId, parsePageQuery(query));
   }
 
   @RequirePermission(Permission.PolicyCreate)
@@ -116,6 +117,7 @@ export class PoliciesController {
   }
 
   @RequirePermission(Permission.PolicyUpdate)
+  @RequireStepUp()
   @Patch(':id')
   update(@CurrentUser() currentUser: ContextUser | undefined, @Param('id') id: string, @Body() body: unknown) {
     const parsed = updatePolicySchema.safeParse(body);

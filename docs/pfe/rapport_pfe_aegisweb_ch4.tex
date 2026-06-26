@@ -1,0 +1,538 @@
+% =============================================================
+% CHAPITRE 4 — RÉALISATION
+% =============================================================
+\chapter{Réalisation}
+
+\begin{chapintro}
+Ce chapitre présente la réalisation technique de la plateforme AegisWeb.
+Après la description de l'environnement et des technologies, nous exposons
+les livrables des phases principales, illustrons les interfaces du
+dashboard et présentons les résultats des tests de validation.
+\end{chapintro}
+
+\section{Environnement de développement}
+
+\subsection{Environnement matériel}
+
+\begin{table}[H]
+\centering
+\caption{Spécifications de l'environnement matériel}
+\label{tab:materiel}
+\begin{tabularx}{\textwidth}{@{}p{4cm}X@{}}
+\toprule
+\textbf{Composant}       & \textbf{Spécification} \\
+\midrule
+\rowcolor{rowgray}
+Processeur               & Intel Core i7 / AMD Ryzen 7 (multi-cœurs) \\
+Mémoire RAM              & 16~Go minimum (32~Go recommandé pour Playwright) \\
+\rowcolor{rowgray}
+Stockage                 & SSD NVMe 512~Go \\
+Système d'exploitation   & Linux (Ubuntu) / Windows 11 + WSL2 \\
+\rowcolor{rowgray}
+Connexion réseau         & Internet pour installation dépendances npm \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Environnement logiciel}
+
+\begin{table}[H]
+\centering
+\caption{Environnement logiciel et outils de développement}
+\label{tab:logiciel}
+\begin{tabularx}{\textwidth}{@{}p{4cm}X@{}}
+\toprule
+\textbf{Catégorie}       & \textbf{Outil / Version} \\
+\midrule
+\rowcolor{rowgray}
+Runtime                  & Node.js $\geq$ 22 \\
+Gestionnaire paquets     & pnpm $\geq$ 10 (workspaces) \\
+\rowcolor{rowgray}
+Éditeur                  & Visual Studio Code / Cursor \\
+Langage                  & TypeScript 5.7+ \\
+\rowcolor{rowgray}
+Conteneurisation         & Docker Compose v2 \\
+Base de données          & PostgreSQL 17, Prisma 7.8 \\
+\rowcolor{rowgray}
+Tests                    & Vitest 2.1 + Supertest \\
+Lint                     & ESLint 9 \\
+\rowcolor{rowgray}
+Navigateur automatisé    & Playwright Chromium (worker) \\
+Client API               & Swagger (\texttt{/docs}), Bruno/Postman \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Technologies utilisées}
+
+\subsection{Backend — API NestJS}
+
+\begin{table}[H]
+\centering
+\caption{Technologies du backend AegisWeb}
+\label{tab:tech_backend}
+\begin{tabularx}{\textwidth}{@{}p{3.6cm}p{2.4cm}X@{}}
+\toprule
+\textbf{Technologie}      & \textbf{Version} & \textbf{Rôle} \\
+\midrule
+\rowcolor{rowgray}
+Node.js                   & 22+              & Runtime JavaScript serveur \\
+NestJS                    & 11               & Framework modulaire (DI, guards) \\
+\rowcolor{rowgray}
+Prisma                    & 7.8              & ORM, migrations, client typé \\
+PostgreSQL                & 17               & Base relationnelle \\
+\rowcolor{rowgray}
+Redis + BullMQ            & 8 / 5            & Files de workflows \\
+AWS SDK (S3)              & 3.x              & Stockage MinIO/S3 \\
+\rowcolor{rowgray}
+Argon2                    & —                & Hachage mots de passe \\
+jsonwebtoken              & —                & JWT access tokens \\
+\rowcolor{rowgray}
+Zod                       & 3.24+            & Validation schémas \\
+Vitest + Supertest        & 2.1+             & Tests intégration API \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Worker et runtime navigateur}
+
+\begin{table}[H]
+\centering
+\caption{Technologies du worker et browser-runtime}
+\label{tab:tech_worker}
+\begin{tabularx}{\textwidth}{@{}p{3.6cm}p{2.4cm}X@{}}
+\toprule
+\textbf{Technologie}      & \textbf{Version}  & \textbf{Rôle} \\
+\midrule
+\rowcolor{rowgray}
+NestJS application context & 11               & Boot worker sans HTTP public \\
+BullMQ Worker             & 5                 & Consommation jobs (concurrency=1) \\
+\rowcolor{rowgray}
+Playwright                & 1.60              & Automatisation Chromium \\
+libs/browser-runtime      & —                 & Allowlist, screenshots, downloads \\
+\rowcolor{rowgray}
+libs/vault                & —                 & Déchiffrement credential scopé run \\
+HMAC worker tokens        & —                 & Auth endpoints internes (6h TTL) \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Frontend — Dashboard Next.js}
+
+\begin{table}[H]
+\centering
+\caption{Technologies du frontend AegisWeb}
+\label{tab:tech_frontend}
+\begin{tabularx}{\textwidth}{@{}p{3.6cm}p{2.4cm}X@{}}
+\toprule
+\textbf{Technologie}      & \textbf{Version}  & \textbf{Rôle} \\
+\midrule
+\rowcolor{rowgray}
+Next.js                   & 16                & App Router, SSR, middleware \\
+React                     & 19                & Composants UI \\
+\rowcolor{rowgray}
+Tailwind CSS              & 4                 & Styles utilitaires \\
+Radix UI / shadcn         & —                 & Primitives accessibles (\texttt{components/ui}) \\
+\rowcolor{rowgray}
+TanStack React Query      & 5                 & Cache serveur, polling runs/approvals \\
+react-hook-form + Zod     & —                 & Formulaires typés \\
+\rowcolor{rowgray}
+Sonner                    & —                 & Notifications toast \\
+Iconoir + Lucide          & —                 & Iconographie \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Phases de réalisation et livrables}
+
+\subsection{Phases 0--6 — Fondation, auth et audit}
+
+\begin{table}[H]
+\centering
+\caption{Phases 0 à 6 — Fondations et sécurité transversale}
+\label{tab:phases_0_6}
+\begin{tabularx}{\textwidth}{@{}cXp{2cm}c@{}}
+\toprule
+\textbf{Ph.} & \textbf{Livrable} & \textbf{Tests} & \textbf{Statut} \\
+\midrule
+0 & Boot API, worker, sandbox, libs & phase0.spec.ts & \coche \\
+\rowcolor{rowgray}
+1 & Prisma schema + seed Northstar Labs & phase1-database & \coche \\
+2 & Lib domain (enums, permissions) & phase2-domain & \coche \\
+\rowcolor{rowgray}
+3 & Config, logging, health, erreurs & phase3-api-foundation & \coche \\
+4 & AuthModule Argon2id + JWT + refresh & phase4-auth & \coche \\
+\rowcolor{rowgray}
+5 & RBAC + isolation organisation & phase5-authorization & \coche \\
+6 & AuditModule hash chain SHA-256 & phase6-audit & \coche \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\textbf{Réalisations clés~:}
+\begin{itemize}[leftmargin=1.8cm, itemsep=3pt]
+  \item Stack Docker Compose (Postgres, Redis, MinIO, Mailpit).
+  \item Format réponse API unifié~: \texttt{\{ data \}} / \texttt{\{ error \}}.
+  \item Refresh token atomique (migration \texttt{atomic\_refresh\_token\_hash}).
+  \item Chaîne d'audit~: chaque \texttt{AuditEvent} référence \texttt{prevHash}.
+\end{itemize}
+
+\subsection{Phases 7--18 — Ressources métier et queue}
+
+\begin{table}[H]
+\centering
+\caption{Phases 7 à 18 — Modules CRUD et orchestration}
+\label{tab:phases_7_18}
+\begin{tabularx}{\textwidth}{@{}cXp{2cm}c@{}}
+\toprule
+\textbf{Ph.} & \textbf{Livrable} & \textbf{Tests} & \textbf{Statut} \\
+\midrule
+\rowcolor{rowgray}
+7 & FilesModule S3/MinIO & phase7-files & \coche \\
+8 & Organization + Users & phase8-organization-users & \coche \\
+\rowcolor{rowgray}
+9--10 & Agents + Vendors & phase9, phase10 & \coche \\
+11--12 & Policy Engine + PoliciesModule & phase11, phase12 & \coche \\
+\rowcolor{rowgray}
+13 & Vault AES-GCM + Credentials & phase13-credentials-vault & \coche \\
+14--15 & Workflows + WorkflowRuns & phase14, phase15 & \coche \\
+\rowcolor{rowgray}
+16--17 & ActionAttempts + Approvals & phase16, phase17 & \coche \\
+18 & QueueModule BullMQ & phase18-queue & \coche \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Phases 19--29 — Worker, workflows et finalisation}
+
+\begin{table}[H]
+\centering
+\caption{Phases 19 à 29 — Worker, browser et workflows SaaS}
+\label{tab:phases_19_29}
+\begin{tabularx}{\textwidth}{@{}cXp{2cm}c@{}}
+\toprule
+\textbf{Ph.} & \textbf{Livrable} & \textbf{Tests} & \textbf{Statut} \\
+\midrule
+\rowcolor{rowgray}
+19--20 & Worker foundation + browser-runtime & phase19, phase20 & \coche \\
+21--22 & Vendor sandbox + Connector & phase21, phase22 & \coche \\
+\rowcolor{rowgray}
+23 & InternalWorkerModule & phase23-internal-worker & \coche \\
+24--26 & 3 workflows SaaS + approbation & phase24--26 & \coche \\
+\rowcolor{rowgray}
+27--28 & Receipts + Notifications email & phase27, phase28 & \coche \\
+29 & OpenAPI / Swagger & phase29-api-docs & \coche \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\textbf{Workflows implémentés~:}
+\begin{itemize}[leftmargin=1.8cm, itemsep=3pt]
+  \item \texttt{vendor\_invoice\_download}~: login $\rightarrow$ téléchargement
+    facture PDF $\rightarrow$ screenshot $\rightarrow$ receipt.
+  \item \texttt{saas\_renewal\_check}~: login $\rightarrow$ lecture données
+    renouvellement $\rightarrow$ screenshot $\rightarrow$ receipt.
+  \item \texttt{plan\_downgrade\_request}~: préparation changement plan
+    $\rightarrow$ pause approbation $\rightarrow$ reprise $\rightarrow$ soumission.
+\end{itemize}
+
+\section{Extraits de code significatifs}
+
+\subsection{Permissions RBAC partagées}
+
+\begin{lstlisting}[style=tsstyle,
+  caption={libs/domain — Définition des permissions et rôles},
+  label={lst:permissions}]
+export const Permission = {
+  AgentCreate: 'agent:create',
+  AgentRead: 'agent:read',
+  CredentialGrant: 'credential:grant',
+  WorkflowRun: 'workflow:run',
+  ApprovalApprove: 'approval:approve',
+  AuditRead: 'audit:read',
+  // ... 28 permissions au total
+} as const;
+
+export const ROLE_PERMISSIONS: Record<UserRole, readonly Permission[]> = {
+  [UserRole.Owner]: PERMISSIONS,
+  [UserRole.Approver]: [
+    Permission.ApprovalRead,
+    Permission.ApprovalApprove,
+    Permission.ReceiptRead,
+    // ...
+  ],
+  [UserRole.Developer]: [
+    ...readPermissions,
+    Permission.WorkflowRun,
+    Permission.WorkflowCancel,
+  ],
+};
+\end{lstlisting}
+
+\subsection{Middleware de sécurité frontend}
+
+\begin{lstlisting}[style=tsstyle,
+  caption={apps/web/middleware.ts — Protection routes /app et CSP},
+  label={lst:middleware}]
+export function middleware(request: NextRequest) {
+  const nonce = generateNonce();
+  const response = NextResponse.next();
+
+  // Routes dashboard protegees
+  if (request.nextUrl.pathname.startsWith('/app')) {
+    const session = request.cookies.get('aegisweb_session');
+    if (!session) {
+      return NextResponse.redirect(new URL('/login', request.url));
+    }
+  }
+
+  // CSP avec nonce (pas de unsafe-eval)
+  response.headers.set('Content-Security-Policy', buildCsp(nonce));
+  response.headers.set('X-Frame-Options', 'DENY');
+  return response;
+}
+\end{lstlisting}
+
+\subsection{Enqueue idempotent BullMQ}
+
+\begin{lstlisting}[style=tsstyle,
+  caption={Queue — Jobs idempotents par runId},
+  label={lst:queue}]
+async enqueueWorkflowStart(runId: string, payload: StartPayload) {
+  await this.workflowRunsQueue.add(
+    'start-workflow-run',
+    payload,
+    {
+      jobId: `start-${runId}`,
+      attempts: 3,
+      backoff: { type: 'exponential', delay: 2000 },
+    },
+  );
+}
+\end{lstlisting}
+
+\section{Interfaces du dashboard}
+
+Le dashboard Next.js (\texttt{apps/web}) suit une direction UX
+\textbf{evidence-first}~: chaque écran opérationnel met en avant les
+preuves (screenshots, timeline, audit drawer, receipts).
+
+\subsection{Structure des routes}
+
+\begin{table}[H]
+\centering
+\caption{Routes principales du dashboard (\texttt{/app/*})}
+\label{tab:routes}
+\small
+\begin{tabularx}{\textwidth}{@{}p{4.2cm}X@{}}
+\toprule
+\textbf{Route} & \textbf{Fonction} \\
+\midrule
+\rowcolor{rowgray}
+\texttt{/app/home} & Tableau de bord opérationnel \\
+\texttt{/app/agents} & Gestion identités agents \\
+\rowcolor{rowgray}
+\texttt{/app/vendors} & Fournisseurs SaaS \\
+\texttt{/app/credentials} & Coffre-fort (sans secrets en clair) \\
+\rowcolor{rowgray}
+\texttt{/app/policies} & Politiques de gouvernance \\
+\texttt{/app/workflows} & Définitions de workflows \\
+\rowcolor{rowgray}
+\texttt{/app/runs} & Exécutions avec polling état \\
+\texttt{/app/approvals} & File d'approbation humaine \\
+\rowcolor{rowgray}
+\texttt{/app/receipts} & Reçus de confiance \\
+\texttt{/app/audit} & Journal d'audit chaîné \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Captures d'interface}
+
+\begin{figure}[H]
+\centering
+\begin{minipage}[t]{0.47\textwidth}
+  \diagramespace[7.5cm]{Capture dashboard — Page d'accueil /app/home
+    (métriques runs, approvals en attente, activité récente)}
+  \caption{Tableau de bord opérationnel}
+  \label{fig:ui_home}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.47\textwidth}
+  \diagramespace[7.5cm]{Capture dashboard — Détail run avec timeline
+    evidence, screenshots, décisions policy, statut approval}
+  \caption{Détail d'exécution workflow — panneau preuves}
+  \label{fig:ui_run}
+\end{minipage}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\begin{minipage}[t]{0.47\textwidth}
+  \diagramespace[7.5cm]{Capture dashboard — Formulaire création agent
+    (identifier, purpose, status)}
+  \caption{Gestion des agents IA}
+  \label{fig:ui_agents}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.47\textwidth}
+  \diagramespace[7.5cm]{Capture dashboard — Écran approbation avec
+    screenshots billing, boutons Approve/Reject, contexte risque}
+  \caption{Interface d'approbation humaine}
+  \label{fig:ui_approval}
+\end{minipage}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.35\textwidth]{assets/aegisweb_primary_logo.png}
+\caption{Logo principal AegisWeb — identité visuelle de la plateforme}
+\label{fig:logo_primary}
+\end{figure}
+
+\section{Données de démonstration}
+
+Après \texttt{pnpm db:reset}, l'environnement local contient~:
+
+\begin{table}[H]
+\centering
+\caption{Données seed — Organisation Northstar Labs}
+\label{tab:seed}
+\small
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+\toprule
+\textbf{Élément} & \textbf{Valeur} \\
+\midrule
+\rowcolor{rowgray}
+Organisation & Northstar Labs (\texttt{northstarlabs.dev}) \\
+Utilisateurs & founder (owner), finance (approver), auditor, dev
+  — mot de passe \texttt{Password123!} \\
+\rowcolor{rowgray}
+Agents & Procurement Bot, Invoice Collector, Risky Admin Bot,
+  Legacy Spend Bot \\
+Vendors & Acme Analytics, Nimbus Docs, Atlas CRM, PayrollPro \\
+\rowcolor{rowgray}
+Workflows & Acme Invoice Download, Acme Renewal Check,
+  Acme Downgrade Request, Atlas Renewal Check \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Tests et validation}
+
+\subsection{Stratégie de tests}
+
+\begin{itemize}[leftmargin=1.8cm, itemsep=3pt]
+  \item \textbf{33 fichiers Vitest} dans \texttt{tests/} (phases 0--29 +
+    acceptance + sécurité + dashboard client).
+  \item Environnement \texttt{node} pour backend/worker ;
+    \texttt{jsdom} pour composants web.
+  \item Pool forks single-fork pour tests partageant services locaux.
+  \item Scripts complémentaires~: \texttt{pnpm smoke}, \texttt{pnpm e2e:happy},
+    \texttt{pnpm qa:click-path}, \texttt{pnpm prod:check}.
+\end{itemize}
+
+\subsection{Résultats d'acceptation MVP}
+
+\begin{table}[H]
+\centering
+\caption{Résultats de la suite d'acceptation MVP backend}
+\label{tab:acceptance}
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+\toprule
+\textbf{Métrique} & \textbf{Valeur documentée} \\
+\midrule
+\rowcolor{rowgray}
+Fichiers de tests & 31 (+ security + web client) \\
+Tests passés & 195 \\
+\rowcolor{rowgray}
+Fichier acceptance & \texttt{mvp-backend-acceptance.spec.ts} \\
+Régression sécurité & \texttt{security-coverage.spec.ts} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Tests fonctionnels représentatifs}
+
+\begin{table}[H]
+\centering
+\caption{Tests fonctionnels backend représentatifs}
+\label{tab:tests_backend}
+\small
+\begin{tabularx}{\textwidth}{@{}p{0.9cm}Xp{3.6cm}c@{}}
+\toprule
+\textbf{ID} & \textbf{Scénario} & \textbf{Résultat attendu} & \textbf{Statut} \\
+\midrule
+\rowcolor{rowgray}
+T01 & Login owner Northstar Labs & JWT + cookie refresh & \coche \\
+T02 & Isolation cross-org & HTTP 404/403 & \coche \\
+\rowcolor{rowgray}
+T03 & Création agent + grant credential & Grant actif en BDD & \coche \\
+T04 & Policy deny action interdite & ActionAttempt denied & \coche \\
+\rowcolor{rowgray}
+T05 & Workflow invoice download E2E & Run completed + receipt & \coche \\
+T06 & Downgrade + approbation & Pause $\rightarrow$ resume $\rightarrow$ receipt & \coche \\
+\rowcolor{rowgray}
+T07 & Audit hash chain integrity & prevHash cohérent & \coche \\
+T08 & Vault decrypt scopé run & Secret déchiffré worker only & \coche \\
+\rowcolor{rowgray}
+T09 & Browser allowlist violation & Action bloquée & \coche \\
+T10 & Refresh token révoqué & HTTP 401 & \coche \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Score audit sécurité}
+
+\begin{table}[H]
+\centering
+\caption{Scores d'audit sécurité (docs/SECURITY\_AUDIT.md)}
+\label{tab:security_audit}
+\begin{tabularx}{\textwidth}{@{}p{4.5cm}C{2.2cm}@{}}
+\toprule
+\textbf{Domaine} & \textbf{Score /5} \\
+\midrule
+\rowcolor{rowgray}
+Credential vault & 4,0 \\
+Auth / sessions & 3,8 \\
+\rowcolor{rowgray}
+Autorisation / tenant & 4,0 \\
+Worker / internal API & 3,8 \\
+\rowcolor{rowgray}
+Browser runtime & 3,8 \\
+Evidence / files & 3,3 \\
+\rowcolor{rowgray}
+Frontend & 3,8 \\
+\textbf{Pilot readiness global} & \textbf{3,8} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Métriques de performance}
+
+\begin{table}[H]
+\centering
+\caption{Métriques mesurées en environnement de développement local}
+\label{tab:perfs}
+\begin{tabularx}{\textwidth}{@{}p{5cm}Xp{2.6cm}@{}}
+\toprule
+\textbf{Métrique} & \textbf{Description} & \textbf{Valeur} \\
+\midrule
+\rowcolor{rowgray}
+Readiness API & GET \texttt{/health/ready} & Postgres + Redis OK \\
+Latence CRUD & GET agents/vendors & $<$ 100 ms typique \\
+\rowcolor{rowgray}
+Workflow E2E & Downgrade avec approbation & 30--90 s (Playwright) \\
+Build Next.js & \texttt{pnpm build:web} & $\approx$ 2--4 min \\
+\rowcolor{rowgray}
+Suite Vitest complète & \texttt{pnpm test} & $\approx$ 3--8 min \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\conclusionchap{Ce chapitre a présenté la réalisation complète d'AegisWeb
+sur 30 phases incrémentales, couvrant l'API NestJS, le worker Playwright,
+les bibliothèques de sécurité et le dashboard Next.js. L'intégration
+PostgreSQL, Redis, BullMQ, MinIO et Prisma a produit un MVP local
+fonctionnel, validé par 195 tests Vitest et un audit sécurité documenté
+(3,8/5 pilot readiness).}

@@ -250,6 +250,7 @@ describe('phase 22 connector module', () => {
       workflowRunId: run.id,
       organizationId,
       allowedDomains: ['127.0.0.1'],
+      allowPrivateNetwork: true,
       artifactDir,
       timeoutMs: 5000,
       headless: true

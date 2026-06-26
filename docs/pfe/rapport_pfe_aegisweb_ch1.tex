@@ -1,0 +1,306 @@
+% =============================================================
+% CHAPITRE 1 — CADRE DU PROJET
+% =============================================================
+\chapter{Cadre du projet}
+
+\begin{chapintro}
+Ce premier chapitre situe notre projet dans son contexte professionnel
+et technique. Nous y présentons le domaine de la gouvernance des agents
+IA, analysons l'existant pour en identifier les lacunes, décrivons la
+solution AegisWeb, puis exposons la méthodologie et le planning retenus.
+\end{chapintro}
+
+\section{Présentation du contexte et de l'organisme d'accueil}
+
+\subsection{Contexte du projet}
+
+\textbf{AegisWeb} est une plateforme de \textbf{gouvernance et de confiance
+pour agents IA agissant sur le web}. Elle fournit une couche de contrôle
+entre les agents autonomes et les systèmes métier (portails SaaS,
+formulaires, facturation, etc.). Son principe fondateur est
+\textit{«~Permission before autonomy~»}~: la permission est le goulot
+d'étranglement, pas l'intelligence.
+
+Le premier cas d'usage ciblé est le \textbf{procurement SaaS}~: permettre
+à des agents IA de gérer en toute sécurité les factures, les
+renouvellements et les changements de plan soumis à approbation humaine,
+sans exposer de credentials bruts.
+
+\begin{table}[H]
+\centering
+\caption{Fiche d'identité du projet AegisWeb}
+\label{tab:fiche_projet}
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+\toprule
+\textbf{Critère}         & \textbf{Description} \\
+\midrule
+Dénomination             & AegisWeb (nom interne historique~: AgentPass) \\
+\rowcolor{rowgray}
+Secteur d'activité       & Cybersécurité applicative, gouvernance IA \\
+Nature                   & Plateforme MVP locale de gouvernance d'agents web \\
+\rowcolor{rowgray}
+Produit phare            & Couche permission, credential, approbation, runtime
+                           navigateur et audit pour agents IA \\
+Marché cible             & Entreprises utilisant des agents IA pour
+                           l'automatisation web contrôlée \\
+\rowcolor{rowgray}
+Cas d'usage MVP          & Procurement SaaS (factures, renouvellements,
+                           downgrades avec approbation) \\
+Langues de l'interface   & Anglais (dashboard), documentation bilingue \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Cadre du projet de fin d'études}
+
+Notre projet de fin d'études consiste en la \textbf{conception et le
+développement complets de la plateforme AegisWeb}, couvrant~:
+\begin{itemize}[leftmargin=1.8cm, itemsep=3pt]
+  \item le \textbf{backend} (API REST NestJS, base de données, files
+    BullMQ, endpoints internes worker) ;
+  \item le \textbf{worker} (exécution de workflows, Playwright, connecteur
+    vendor) ;
+  \item le \textbf{frontend} (dashboard Next.js, authentification, couche
+    données React Query) ;
+  \item les \textbf{bibliothèques partagées} (domain, vault, policy-engine,
+    browser-runtime, audit) ;
+  \item l'\textbf{infrastructure} locale (Docker Compose, PostgreSQL,
+    Redis, MinIO, Mailpit).
+\end{itemize}
+
+\section{Étude de l'existant}
+
+\subsection{Présentation des solutions existantes}
+
+\begin{table}[H]
+\centering
+\caption{Analyse comparative des approches existantes}
+\label{tab:existant}
+\begin{tabularx}{\textwidth}{@{}lXXC{2.4cm}@{}}
+\toprule
+\textbf{Solution} & \textbf{Points forts} & \textbf{Limitations}
+  & \textbf{Gouvernance IA} \\
+\midrule
+\rowcolor{rowgray}
+RPA classique (UiPath, etc.)
+  & Automatisation UI mature, intégrations entreprise
+  & Pas d'identité agent, pas de politiques fines, audit limité
+  & Faible \\
+Intégrations API directes
+  & Rapides, déterministes, testables
+  & Couverture partielle des portails, pas d'actions UI
+  & Moyenne \\
+\rowcolor{rowgray}
+Gestionnaires de secrets (Vault)
+  & Chiffrement robuste, rotation, audit
+  & Pas de runtime navigateur, pas d'approbation workflow
+  & Partielle \\
+Agents IA autonomes (bruts)
+  & Flexibilité maximale, intelligence adaptative
+  & Risque credential, actions silencieuses, pas de preuves
+  & Inexistante \\
+\rowcolor{rowgray}
+\textbf{AegisWeb (proposé)}
+  & Identité agent, vault, politiques, approbation, preuves, audit
+  & MVP local, pas encore SaaS production multi-tenant
+  & Élevée \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Critique de l'existant}
+
+L'analyse révèle plusieurs lacunes fondamentales :
+\begin{itemize}[leftmargin=1.8cm, itemsep=4pt]
+  \item \textbf{Absence d'identité non-humaine dédiée} pour les agents,
+    avec statut, purpose et grants explicites.
+  \item \textbf{Exposition des credentials} aux agents ou aux prompts LLM,
+    sans chiffrement au repos ni déchiffrement scopé par exécution.
+  \item \textbf{Absence de moteur de politiques} évaluant domaines,
+    actions interdites, seuils financiers et niveaux de risque.
+  \item \textbf{Pas de pause pour approbation humaine} avant les actions
+    destructrices (downgrade, annulation).
+  \item \textbf{Manque de preuves opérationnelles}~: screenshots, factures,
+    reçus de confiance et chaîne d'audit vérifiable.
+  \item \textbf{Runtime navigateur non contrôlé}~: accès réseau privé,
+    popups hors domaine, téléchargements non tracés.
+\end{itemize}
+
+\section{Solution proposée}
+
+\subsection{Description d'AegisWeb}
+
+\textbf{AegisWeb} est la couche de permission, credential, approbation,
+runtime navigateur et audit pour les agents IA agissant sur le web. Elle
+donne aux agents une \textbf{autorité contrôlée} via~:
+
+\begin{itemize}[leftmargin=1.8cm, itemsep=4pt]
+  \item \textbf{Identité agent}~: agent non-humain avec identifier unique,
+    statut (active, paused, revoked) et purpose documenté.
+  \item \textbf{Coffre-fort de credentials}~: chiffrement AES-256-GCM au
+    repos, octroi par agent via \texttt{CredentialAgentGrant}.
+  \item \textbf{Moteur de politiques}~: allowlist de domaines, actions
+    interdites, seuils de dépense, règles d'approbation.
+  \item \textbf{Runtime navigateur contrôlé}~: Playwright avec allowlist,
+    blocage réseau privé, masquage des champs sensibles.
+  \item \textbf{Workflows queue-backed}~: trois templates SaaS procurement.
+  \item \textbf{Approbation humaine}~: pause du run, notification email,
+    reprise conditionnelle.
+  \item \textbf{Audit trail}~: événements append-only avec chaîne de hash
+    SHA-256 (\texttt{prevHash} + \texttt{eventHash}).
+  \item \textbf{Receipts}~: artefacts finaux de confiance résumant
+    timeline, décisions et preuves.
+  \item \textbf{Dashboard opérationnel}~: salle de preuves pour agents,
+    vendors, policies, runs, approvals, audit.
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.55\textwidth]{assets/aegis_agent_identity_passport.png}
+\caption{Concept d'identité agent AegisWeb — passeport d'autorité contrôlée}
+\label{fig:agent_passport}
+\end{figure}
+
+\subsection{Flux produit phare — Downgrade de plan SaaS}
+
+\begin{enumerate}[leftmargin=1.8cm, itemsep=3pt]
+  \item L'owner se connecte au dashboard.
+  \item Il crée ou sélectionne agent, vendor, credential, policy, workflow.
+  \item Il lance «~Acme Downgrade Request~».
+  \item L'API crée un \texttt{WorkflowRun} et enqueue un job BullMQ.
+  \item Le worker ouvre un navigateur contrôlé (Playwright).
+  \item Le worker se connecte au sandbox via credential déchiffré (API
+    interne vault, scopé au run).
+  \item Le worker lit les données de renouvellement et de plan.
+  \item Le moteur de politique classe l'action comme risquée
+    $\rightarrow$ \textbf{pause pour approbation}.
+  \item L'approbateur examine les preuves (screenshots) et approuve ou
+    rejette.
+  \item Le worker reprend uniquement après approbation.
+  \item L'action est soumise $\rightarrow$ \textbf{receipt} + \textbf{audit
+    trail} générés.
+  \item Notification email via Mailpit (en local).
+\end{enumerate}
+
+\subsection{Objectifs du projet}
+
+\paragraph{Objectifs fonctionnels :}
+\begin{itemize}[leftmargin=1.8cm, itemsep=3pt]
+  \item Développer une API REST NestJS avec 20+ modules (auth, RBAC,
+    agents, vendors, policies, credentials, workflows, runs, approvals,
+    receipts, audit, files, queue, internal worker).
+  \item Implémenter un schéma Prisma multi-tenant (17 tables) avec seed
+    de démonstration riche.
+  \item Concevoir un moteur de politiques pur TypeScript sans dépendance
+    BDD.
+  \item Réaliser un coffre-fort AES-256-GCM avec redaction récursive des
+    secrets.
+  \item Développer un worker BullMQ + Playwright avec trois workflows
+    SaaS.
+  \item Mettre en place un dashboard Next.js 16 evidence-first.
+  \item Fournir un vendor sandbox pour démos et tests déterministes.
+\end{itemize}
+
+\paragraph{Objectifs non fonctionnels :}
+\begin{itemize}[leftmargin=1.8cm, itemsep=3pt]
+  \item Isolation multi-tenant stricte par \texttt{organizationId}.
+  \item Argon2id, JWT courte durée, refresh HttpOnly atomique.
+  \item Rate limiting Redis en production.
+  \item CSP nonce-based sans \texttt{unsafe-eval} sur le frontend.
+  \item Tests d'intégration Vitest couvrant les 30 phases backend.
+  \item Déploiement Docker Compose reproductible.
+\end{itemize}
+
+\subsection{Périmètre du projet}
+
+Le périmètre couvre~:
+\begin{enumerate}[leftmargin=1.8cm, itemsep=3pt]
+  \item Le monorepo \texttt{agentpass} (pnpm workspaces).
+  \item Les applications \texttt{api}, \texttt{worker}, \texttt{web},
+    \texttt{vendor-sandbox}.
+  \item Les bibliothèques \texttt{domain}, \texttt{database}, \texttt{vault},
+    \texttt{policy-engine}, \texttt{browser-runtime}, \texttt{audit},
+    \texttt{testing}.
+  \item L'infrastructure \texttt{infra/docker-compose.yml}.
+  \item 33 fichiers de tests Vitest + scripts smoke/E2E.
+\end{enumerate}
+
+\section{Méthodologie de gestion de projet}
+
+\subsection{Approche incrémentale par phases}
+
+Contrairement à une approche SCRUM classique par sprints, AegisWeb a été
+développé selon une \textbf{méthodologie incrémentale en 30 phases}
+(documentées dans \texttt{docs/BACKEND\_IMPLEMENTATION\_PLAN.md}), chaque
+phase livrant un module testable et validé avant passage à la suivante.
+
+\begin{table}[H]
+\centering
+\caption{Principes de la méthodologie par phases}
+\label{tab:methodo}
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+\toprule
+\textbf{Élément}        & \textbf{Application dans le projet AegisWeb} \\
+\midrule
+\rowcolor{rowgray}
+Phase                   & Incrément fonctionnel avec tests dédiés
+                          (\texttt{phaseN.spec.ts}) \\
+Definition of Done      & Tests passants, module intégré, notes de
+                          complétion documentées \\
+\rowcolor{rowgray}
+Acceptance MVP          & \texttt{mvp-backend-acceptance.spec.ts}
+                          (31 fichiers, 195 tests) \\
+Traçabilité             & \texttt{docs/PHASE\_*\_COMPLETION\_NOTES.md}
+                          (27 fichiers) \\
+\rowcolor{rowgray}
+Sécurité continue       & \texttt{security-coverage.spec.ts} +
+                          \texttt{docs/SECURITY\_AUDIT.md} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Planification générale — Diagramme de Gantt}
+
+\begin{figure}[H]
+\centering
+\caption{Diagramme de Gantt — Planning prévisionnel du projet (24 semaines)}
+\label{fig:gantt}
+\resizebox{\textwidth}{!}{%
+\begin{ganttchart}[
+  hgrid,
+  vgrid          = {*{1}{dotted}},
+  bar/.style     = {fill=aegisblue!70, rounded corners=1pt},
+  bar label font = \small,
+  title label font = \small\bfseries,
+  milestone label font = \small\itshape,
+  milestone/.style  = {fill=aegisaccent},
+  x unit         = 0.45cm,
+  y unit title   = 0.62cm,
+  y unit chart   = 0.68cm,
+  title height   = 1,
+  bar height     = 0.55,
+]{1}{24}
+  \gantttitle{Planning prévisionnel — AegisWeb (24 semaines)}{24} \\
+  \gantttitlelist{1,...,24}{1} \\
+  \ganttbar{Étude \& Analyse besoins}{1}{2} \\
+  \ganttbar{Phases 0--3 : Fondation API}{3}{5} \\
+  \ganttbar{Phases 4--8 : Auth, RBAC, Org, Users}{6}{8} \\
+  \ganttbar{Phases 9--13 : Agents, Vendors, Vault}{9}{11} \\
+  \ganttbar{Phases 14--18 : Workflows, Queue}{12}{14} \\
+  \ganttbar{Phases 19--23 : Worker, Browser, Sandbox}{15}{17} \\
+  \ganttbar{Phases 24--26 : Workflows SaaS}{18}{19} \\
+  \ganttbar{Phases 27--29 : Receipts, Notif, OpenAPI}{20}{21} \\
+  \ganttbar{Dashboard Next.js (frontend)}{10}{22} \\
+  \ganttbar{Tests acceptance \& sécurité}{21}{23} \\
+  \ganttbar{Rédaction rapport PFE}{22}{24} \\
+  \ganttmilestone{Livraison finale}{24}
+\end{ganttchart}%
+}
+\end{figure}
+
+\conclusionchap{Ce chapitre nous a permis de situer AegisWeb dans le
+contexte de la gouvernance des agents IA web, d'identifier les
+insuffisances des solutions existantes et de définir les contours de
+notre plateforme. La méthodologie incrémentale en 30 phases et le planning
+sur 24 semaines constituent le cadre organisationnel de notre démarche.
+Le chapitre suivant sera consacré à l'analyse détaillée des besoins.}

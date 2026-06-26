@@ -23,17 +23,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuthSession, authErrorMessage } from "@/lib/auth/auth-session";
 import { apiPost } from "@/lib/api/api-client";
-import { isDemoModeEnabled } from "@/lib/runtime-config";
-
-import { demoSessionFor } from "./auth-client";
 
 gsap.registerPlugin(useGSAP);
 
 export function RegisterForm() {
   const router = useRouter();
   const formRef = useRef<HTMLDivElement | null>(null);
-  const { saveApiSession, saveDemoSession } = useAuthSession();
-  const demoEnabled = isDemoModeEnabled();
+  const { saveApiSession } = useAuthSession();
   const [name, setName] = useState("");
   const [organizationName, setOrganizationName] = useState("");
   const [organizationDomain, setOrganizationDomain] = useState("");
@@ -100,7 +96,6 @@ export function RegisterForm() {
 
     try {
       const data = await apiPost<{
-        accessToken: string;
         user: {
           id: string;
           organizationId: string;
@@ -120,20 +115,11 @@ export function RegisterForm() {
       });
       const session = {
         mode: "api" as const,
-        accessToken: data.accessToken,
         user: data.user,
       };
       saveApiSession(session);
-      router.push("/app/home");
+      router.push("/app/getting-started");
     } catch (authError) {
-      const fallback = demoEnabled ? demoSessionFor(email) : null;
-
-      if (fallback) {
-        saveDemoSession(fallback);
-        router.push("/app/home?demo=1");
-        return;
-      }
-
       setError(authErrorMessage(authError));
       setStatus("idle");
     }

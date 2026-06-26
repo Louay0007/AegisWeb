@@ -1,0 +1,635 @@
+% =============================================================
+% RAPPORT DE PROJET DE FIN D'ÉTUDES — AEGISWEB
+% Plateforme de Gouvernance et de Confiance pour Agents IA Web
+%
+% Compilateur : pdfLaTeX
+% Encodage    : UTF-8
+% Cible       : Overleaf (pdfLaTeX) ou compilation locale
+% =============================================================
+
+\documentclass[12pt,a4paper,oneside]{report}
+
+% ── Encodage & Langue ─────────────────────────────────────────
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+
+% ── Polices ───────────────────────────────────────────────────
+\usepackage{mathptmx}
+\usepackage[scaled=0.90]{helvet}
+\usepackage{courier}
+
+% ── Mise en page ──────────────────────────────────────────────
+\usepackage[
+  left        = 3cm,
+  right       = 2cm,
+  top         = 2.5cm,
+  bottom      = 2.5cm,
+  headheight  = 22pt,
+  headsep     = 10pt,
+  footskip    = 20pt
+]{geometry}
+
+\usepackage{setspace}
+\onehalfspacing
+
+\setlength{\parskip}{3pt plus 1pt minus 1pt}
+\setlength{\parindent}{0pt}
+
+% ── Couleurs (palette AegisWeb) ───────────────────────────────
+\usepackage{xcolor}
+\definecolor{aegisblue}{RGB}{10, 54, 120}
+\definecolor{aegisaccent}{RGB}{0, 112, 200}
+\definecolor{aegislightblue}{RGB}{232, 242, 255}
+\definecolor{aegisgray}{RGB}{100, 100, 100}
+\definecolor{codebg}{RGB}{250, 250, 252}
+\definecolor{codeframe}{RGB}{200, 210, 220}
+\definecolor{successgreen}{RGB}{39, 174, 96}
+\definecolor{dangerred}{RGB}{192, 57, 43}
+\definecolor{warningorange}{RGB}{211, 84, 0}
+\definecolor{rowgray}{RGB}{245, 247, 250}
+
+% ── En-tête & Pied de page ────────────────────────────────────
+\usepackage{fancyhdr}
+\usepackage{graphicx}
+
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0.5pt}
+\renewcommand{\footrulewidth}{0.5pt}
+\renewcommand{\headrule}{%
+  \hbox to\headwidth{%
+    \color{aegisblue}\leaders\hrule height\headrulewidth\hfill}}
+\renewcommand{\footrule}{%
+  \hbox to\headwidth{%
+    \color{aegisblue}\leaders\hrule height\footrulewidth\hfill}}
+
+\fancyhead[L]{\small\includegraphics[height=14pt]{assets/aegisweb_standalone_icon.png}}
+\fancyhead[C]{\small\textcolor{aegisgray}{\textit{\nouppercase{\leftmark}}}}
+\fancyhead[R]{\small\textcolor{aegisblue}{\textsc{AegisWeb}}}
+\fancyfoot[L]{\small\textcolor{aegisgray}{Année Universitaire 2025/2026}}
+\fancyfoot[C]{\small\textcolor{aegisblue}{\thepage}}
+\fancyfoot[R]{\small\textcolor{aegisgray}{[Prénom \textsc{Nom}]}}
+
+\fancypagestyle{plain}{%
+  \fancyhf{}
+  \renewcommand{\headrulewidth}{0pt}
+  \renewcommand{\footrulewidth}{0.5pt}
+  \fancyfoot[C]{\small\textcolor{aegisblue}{\thepage}}
+}
+
+% ── Style des chapitres ───────────────────────────────────────
+\usepackage{titlesec}
+
+\titleformat{\chapter}[display]
+  {\normalfont\fontsize{16}{20}\bfseries\color{aegisblue}\centering}
+  {\MakeUppercase{\chaptertitlename}~\thechapter}
+  {8pt}
+  {\fontsize{16}{20}\bfseries\MakeUppercase}
+  [\vspace{4pt}{\color{aegisaccent}\titlerule[1.5pt]}]
+\titlespacing*{\chapter}{0pt}{10pt}{18pt}
+
+\titleformat{\section}
+  {\normalfont\fontsize{14}{18}\bfseries\color{aegisblue}}
+  {\thesection}{0.8em}{}
+\titlespacing*{\section}{0pt}{12pt}{5pt}
+
+\titleformat{\subsection}
+  {\normalfont\fontsize{12}{16}\bfseries\color{aegisblue}}
+  {\thesubsection}{0.8em}{}
+\titlespacing*{\subsection}{0pt}{9pt}{4pt}
+
+\titleformat{\subsubsection}
+  {\normalfont\fontsize{12}{16}\bfseries\itshape\color{aegisblue}}
+  {\thesubsubsection}{0.8em}{}
+\titlespacing*{\subsubsection}{0pt}{7pt}{3pt}
+
+% ── Table des matières ────────────────────────────────────────
+\usepackage{tocloft}
+\renewcommand{\cftchapdotsep}{\cftdotsep}
+\renewcommand{\cftchapfont}{\bfseries\color{aegisblue}}
+\renewcommand{\cftchappagefont}{\bfseries\color{aegisblue}}
+\setlength{\cftbeforechapskip}{6pt}
+\setlength{\cftbeforesecskip}{2pt}
+
+% ── Tableaux ──────────────────────────────────────────────────
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{multirow}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{colortbl}
+\usepackage{makecell}
+\setlength{\LTcapwidth}{\textwidth}
+\renewcommand{\arraystretch}{1.28}
+\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+
+% ── Figures & Légendes ────────────────────────────────────────
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{float}
+\captionsetup{
+  font          = small,
+  labelfont     = {bf,color=aegisblue},
+  justification = centering,
+  skip          = 5pt
+}
+\captionsetup[table]{
+  position  = above,
+  labelfont = {bf,color=aegisblue},
+  skip      = 4pt
+}
+
+% ── Code source ───────────────────────────────────────────────
+\usepackage{listings}
+
+\lstdefinestyle{tsstyle}{
+  backgroundcolor   = \color{codebg},
+  commentstyle      = \color{green!55!black}\itshape,
+  keywordstyle      = \color{aegisblue}\bfseries,
+  numberstyle       = \tiny\color{gray},
+  stringstyle       = \color{red!60!black},
+  basicstyle        = \ttfamily\footnotesize,
+  breaklines        = true,
+  captionpos        = b,
+  numbers           = left,
+  numbersep         = 7pt,
+  tabsize           = 2,
+  frame             = single,
+  rulecolor         = \color{codeframe},
+  xleftmargin       = 15pt,
+  framexleftmargin  = 15pt,
+  aboveskip         = 8pt,
+  belowskip         = 6pt,
+  morekeywords      = {async,await,import,export,const,interface,type,
+                       enum,implements,extends,readonly,private,public,
+                       protected,static,return,from,true,false,null,
+                       undefined,Promise,Record,Partial},
+}
+
+% ── Boîtes colorées ───────────────────────────────────────────
+\usepackage{tcolorbox}
+\tcbuselibrary{skins,breakable}
+
+\tcbset{
+  aegiscubox/.style={
+    enhanced, breakable,
+    boxrule   = 0.8pt,
+    colframe  = aegisblue,
+    colback   = aegislightblue,
+    coltitle  = white,
+    fonttitle = \bfseries\small,
+    attach boxed title to top left={yshift=-2mm, xshift=4mm},
+    boxed title style={
+      colback  = aegisblue, colframe = aegisblue,
+      boxrule  = 0pt, sharp corners
+    },
+    top = 7pt, bottom = 7pt,
+    before upper = {\setlength{\parskip}{3pt}},
+  }
+}
+
+% ── Divers ────────────────────────────────────────────────────
+\usepackage{enumitem}
+\setlist{itemsep=3pt, topsep=4pt, parsep=0pt}
+\usepackage{amssymb}
+\usepackage{pifont}
+\usepackage{mdframed}
+\usepackage{lscape}
+\usepackage{pgfgantt}
+\usepackage{microtype}
+
+\usepackage{chngcntr}
+\counterwithin{figure}{chapter}
+\counterwithin{table}{chapter}
+
+\usepackage[hidelinks]{hyperref}
+\hypersetup{
+  colorlinks = true,
+  linkcolor  = aegisblue,
+  urlcolor   = aegisaccent,
+  citecolor  = aegisblue,
+  pdftitle   = {Rapport PFE -- AegisWeb -- Gouvernance Agents IA},
+  pdfauthor  = {[Prenom NOM]},
+  pdfsubject = {Conception et Developpement de AegisWeb}
+}
+
+\newmdenv[
+  topline         = false,
+  bottomline      = false,
+  rightline       = false,
+  linewidth       = 3pt,
+  linecolor       = aegisaccent,
+  innerleftmargin = 10pt,
+  innerrightmargin= 6pt,
+  innertopmargin  = 6pt,
+  innerbottommargin = 6pt,
+  backgroundcolor = blue!3!white,
+  skipabove       = 8pt,
+  skipbelow       = 8pt,
+]{chapintro}
+
+\newcommand{\diagramespace}[2][5cm]{%
+  \begin{center}%
+    \setlength{\fboxsep}{10pt}%
+    \setlength{\fboxrule}{1pt}%
+    \fcolorbox{aegisaccent!60}{gray!4}{%
+      \begin{minipage}[c][#1][c]{0.87\textwidth}%
+        \centering
+        {\color{aegisgray}\large$\square$\enspace}%
+        {\color{aegisgray}\textit{\textbf{Espace réservé :} #2}}%
+      \end{minipage}%
+    }%
+  \end{center}%
+}
+
+\newcommand{\coche}{\textcolor{successgreen}{\ding{51}}}
+\newcommand{\croix}{\textcolor{dangerred}{\ding{55}}}
+\newcommand{\attention}{\textcolor{warningorange}{\ding{115}}}
+
+\newcommand{\conclusionchap}[1]{%
+  \vspace{10pt}%
+  \begin{chapintro}%
+    \textbf{Conclusion du chapitre~:} #1%
+  \end{chapintro}%
+  \vspace{4pt}%
+}
+
+% =============================================================
+%                      DOCUMENT
+% =============================================================
+\begin{document}
+
+\pagenumbering{roman}
+
+% =============================================================
+% PAGE DE GARDE
+% =============================================================
+\begin{titlepage}
+\thispagestyle{empty}
+\centering
+
+\vspace*{0.2cm}
+{\large\bfseries RÉPUBLIQUE TUNISIENNE}\\[3pt]
+{\small Ministère de l'Enseignement Supérieur et de la Recherche Scientifique}
+
+\vspace{0.4cm}
+{\color{aegisgray}\rule{\textwidth}{0.4pt}}
+\vspace{0.4cm}
+
+\begin{minipage}[c]{0.38\textwidth}
+  \centering
+  \fbox{\parbox[c][2.8cm][c]{3.5cm}{%
+    \centering\small\textcolor{aegisgray}{Logo\\[4pt]Établissement}}}
+\end{minipage}%
+\hfill%
+\begin{minipage}[c]{0.38\textwidth}
+  \centering
+  \includegraphics[height=2.8cm]{assets/aegisweb_primary_logo.png}
+\end{minipage}
+
+\vspace{0.5cm}
+{\Large\bfseries [NOM DE L'UNIVERSITÉ / ÉCOLE]}\\[4pt]
+{\normalsize Département d'Informatique}
+
+\vspace{0.5cm}
+{\color{aegisblue}\rule{\textwidth}{2pt}}\\[3pt]
+{\Large\bfseries\color{aegisblue} RAPPORT DE PROJET DE FIN D'ÉTUDES}\\[3pt]
+{\color{aegisblue}\rule{\textwidth}{2pt}}
+
+\vspace{0.5cm}
+{\normalsize\itshape Présenté en vue de l'obtention du}\\[4pt]
+{\bfseries [Diplôme National de Licence Appliquée /
+Diplôme d'Ingénieur / Mastère Professionnel]}\\[4pt]
+{\bfseries Spécialité : Génie Logiciel et Systèmes Distribués}
+
+\vspace{0.7cm}
+
+\begin{mdframed}[
+  linecolor       = aegisblue,
+  linewidth       = 1.5pt,
+  innertopmargin  = 12pt,
+  innerbottommargin = 12pt,
+  innerleftmargin = 14pt,
+  innerrightmargin= 14pt,
+  backgroundcolor = aegislightblue
+]
+\centering
+{\Large\bfseries\color{aegisblue}
+  Conception et Développement de \textit{AegisWeb}}\\[6pt]
+{\normalsize\bfseries\color{aegisblue}
+  Une Plateforme de Gouvernance et de Confiance\\
+  pour les Agents d'Intelligence Artificielle Agissant sur le Web}
+\end{mdframed}
+
+\vspace{0.8cm}
+
+\begin{minipage}[t]{0.45\textwidth}
+  \raggedright
+  \textbf{Réalisé par :}\\[5pt]
+  [Prénom \textsc{Nom} Étudiant]
+\end{minipage}%
+\hfill%
+\begin{minipage}[t]{0.45\textwidth}
+  \raggedleft
+  \textbf{Encadré par :}\\[5pt]
+  [Titre. Prénom \textsc{Nom} Encadreur]\\[8pt]
+  \textbf{Encadreur entreprise :}\\[5pt]
+  [Titre. Prénom \textsc{Nom}]
+\end{minipage}
+
+\vspace{0.8cm}
+{\color{aegisgray}\rule{\textwidth}{0.4pt}}\\[5pt]
+\textbf{Organisme d'accueil :}~[Nom de l'entreprise / Projet personnel]
+\hfill
+\textbf{Année Universitaire :}~2025/2026\\[5pt]
+{\color{aegisblue}\rule{\textwidth}{1pt}}
+
+\end{titlepage}
+
+% =============================================================
+% DÉDICACES
+% =============================================================
+\clearpage
+\chapter*{Dédicaces}
+\thispagestyle{plain}
+\addcontentsline{toc}{chapter}{Dédicaces}
+\markboth{Dédicaces}{Dédicaces}
+
+\vspace*{2.5cm}
+\begin{center}
+\begin{minipage}{0.78\textwidth}
+\centering
+\textit{%
+À mes chers parents,\\[5pt]
+pour leur amour inconditionnel, leur soutien sans failles\\
+et les innombrables sacrifices qu'ils ont consentis\\
+pour me permettre d'atteindre cet objectif.\\[1cm]
+À ma famille et à mes proches,\\[5pt]
+dont la présence bienveillante et les encouragements m'ont\\
+accompagné tout au long de ce parcours.\\[1cm]
+À mes camarades et amis,\\[5pt]
+avec qui j'ai partagé les joies, les défis\\
+et les moments inoubliables de ces années d'études.\\[1.2cm]
+\textbf{Je vous dédie ce modeste travail.}%
+}
+\end{minipage}
+\end{center}
+
+% =============================================================
+% REMERCIEMENTS
+% =============================================================
+\clearpage
+\chapter*{Remerciements}
+\thispagestyle{plain}
+\addcontentsline{toc}{chapter}{Remerciements}
+\markboth{Remerciements}{Remerciements}
+
+Nous tenons à exprimer notre profonde gratitude à toutes les personnes
+qui ont contribué, de près ou de loin, à la réalisation de ce projet de
+fin d'études.
+
+\medskip
+Nos remerciements les plus sincères s'adressent en premier lieu à notre
+encadreur académique, \textbf{[Titre. Prénom~\textsc{Nom}]}, pour sa
+disponibilité permanente, ses orientations rigoureuses, ses précieux
+conseils et la confiance qu'il nous a accordée tout au long de
+l'encadrement de ce travail.
+
+\medskip
+Nous remercions également notre encadreur en entreprise,
+\textbf{[Titre. Prénom~\textsc{Nom}]}, pour son accueil, le partage de
+son expertise en cybersécurité et en architecture logicielle, ainsi que
+les recommandations déterminantes qu'il nous a prodiguées dans la conduite
+de ce projet.
+
+\medskip
+Nos remerciements s'étendent à l'ensemble du corps enseignant et
+administratif du~\textbf{[Nom de l'établissement]}, dont la qualité de
+l'enseignement dispensé nous a fourni les fondements théoriques et
+pratiques indispensables à la réalisation de ce travail.
+
+\medskip
+Nous remercions enfin tous nos collègues et amis pour leur soutien moral,
+leurs suggestions constructives et leur bienveillance constante.
+
+% =============================================================
+% RÉSUMÉ (FRANÇAIS)
+% =============================================================
+\clearpage
+\chapter*{Résumé}
+\thispagestyle{plain}
+\addcontentsline{toc}{chapter}{Résumé}
+\markboth{Résumé}{Résumé}
+
+Dans le cadre de notre Projet de Fin d'Études, nous avons conçu et
+développé \textbf{AegisWeb}, une plateforme de gouvernance et de confiance
+pour les agents d'intelligence artificielle agissant sur le web. Ce projet
+répond à un défi émergent des entreprises modernes~: comment autoriser des
+agents IA autonomes à naviguer sur des portails SaaS, télécharger des
+factures, vérifier des renouvellements et effectuer des changements de
+plan sans exposer de mots de passe bruts ni permettre d'actions
+destructrices silencieuses.
+
+\medskip
+Notre solution repose sur une architecture monorepo TypeScript à quatre
+composants applicatifs~: une API de contrôle \textbf{NestJS~11}, un worker
+\textbf{BullMQ} avec runtime navigateur \textbf{Playwright}, un portail
+SaaS simulé (\textit{vendor sandbox}), et un tableau de bord opérationnel
+\textbf{Next.js~16}. La persistance est assurée par \textbf{PostgreSQL~17}
+via \textbf{Prisma~7}, les files d'attente par \textbf{Redis~8}, et le
+stockage de preuves par \textbf{MinIO} (S3-compatible). Le modèle de
+sécurité intègre un coffre-fort AES-256-GCM, un moteur de politiques pur,
+un RBAC à cinq rôles, des approbations humaines, une chaîne d'audit
+SHA-256 et des reçus de confiance (\textit{receipts}).
+
+\medskip
+Les résultats obtenus attestent d'un MVP local complet et fonctionnel,
+couvrant l'identité des agents, la gestion des fournisseurs SaaS, les
+credentials chiffrés, les politiques de risque, trois workflows de
+procurement (téléchargement de facture, vérification de renouvellement,
+demande de downgrade avec approbation), ainsi qu'un dashboard de preuves
+opérationnel. La validation repose sur 33 fichiers de tests Vitest
+(195 tests passés) et des scripts E2E.
+
+\medskip\noindent
+\textbf{Mots-clés :}~\textit{agents IA, gouvernance, cybersécurité,
+coffre-fort de secrets, moteur de politiques, approbation humaine,
+Playwright, NestJS, Next.js, audit trail, procurement SaaS.}
+
+% =============================================================
+% ABSTRACT (ANGLAIS)
+% =============================================================
+\clearpage
+\chapter*{Abstract}
+\thispagestyle{plain}
+\addcontentsline{toc}{chapter}{Abstract}
+\markboth{Abstract}{Abstract}
+
+As part of our Final Year Project, we designed and developed
+\textbf{AegisWeb}, a governance and trust platform for AI agents acting
+on the web. This project addresses a critical challenge for modern
+organizations: how to let autonomous AI agents browse SaaS portals,
+download invoices, check renewals, and perform plan changes without
+exposing raw credentials or allowing silent destructive actions.
+
+\medskip
+Our solution is built upon a TypeScript monorepo with four application
+components: a \textbf{NestJS~11} control-plane API, a \textbf{BullMQ}
+worker with \textbf{Playwright} browser runtime, a simulated SaaS vendor
+sandbox, and a \textbf{Next.js~16} operational dashboard. Persistence
+relies on \textbf{PostgreSQL~17} via \textbf{Prisma~7}, queuing on
+\textbf{Redis~8}, and evidence storage on \textbf{MinIO} (S3-compatible).
+The security model includes an AES-256-GCM vault, a pure policy engine,
+five-role RBAC, human approvals, SHA-256 audit hash chains, and trust
+receipts.
+
+\medskip
+The results demonstrate a complete and functional local MVP covering agent
+identity, SaaS vendor management, encrypted credentials, risk policies,
+three procurement workflows (invoice download, renewal check, downgrade
+request with approval), and an evidence-first operational dashboard.
+Validation relies on 33 Vitest test files (195 passing tests) and E2E
+scripts.
+
+\medskip\noindent
+\textbf{Keywords:}~\textit{AI agents, governance, cybersecurity, secret
+vault, policy engine, human approval, Playwright, NestJS, Next.js,
+audit trail, SaaS procurement.}
+
+% =============================================================
+% TABLE DES MATIÈRES
+% =============================================================
+\clearpage
+\tableofcontents
+\thispagestyle{plain}
+
+% =============================================================
+% LISTE DES FIGURES
+% =============================================================
+\clearpage
+\listoffigures
+\addcontentsline{toc}{chapter}{Liste des figures}
+
+% =============================================================
+% LISTE DES TABLEAUX
+% =============================================================
+\clearpage
+\listoftables
+\addcontentsline{toc}{chapter}{Liste des tableaux}
+
+% =============================================================
+% LISTE DES ABRÉVIATIONS
+% =============================================================
+\clearpage
+\chapter*{Liste des abréviations}
+\thispagestyle{plain}
+\addcontentsline{toc}{chapter}{Liste des abréviations}
+\markboth{Liste des abréviations}{Liste des abréviations}
+
+\vspace{4pt}
+\begin{tabular}{@{}p{2.8cm}p{11.5cm}@{}}
+\toprule
+\textbf{Abréviation} & \textbf{Signification} \\
+\midrule
+AES-GCM    & Advanced Encryption Standard — Galois/Counter Mode \\
+AI / IA    & Artificial Intelligence / Intelligence Artificielle \\
+API        & Application Programming Interface \\
+Argon2id   & Algorithme de hachage de mots de passe \\
+BFF        & Backend For Frontend \\
+BullMQ     & File de messages Redis pour Node.js \\
+CORS       & Cross-Origin Resource Sharing \\
+CRUD       & Create, Read, Update, Delete \\
+CSP        & Content Security Policy \\
+DI         & Dependency Injection \\
+DTO        & Data Transfer Object \\
+GCM        & Galois/Counter Mode (mode de chiffrement) \\
+HMAC       & Hash-based Message Authentication Code \\
+HTTP/S     & Hypertext Transfer Protocol (Secure) \\
+IDE        & Integrated Development Environment \\
+JWT        & JSON Web Token \\
+MVP        & Minimum Viable Product \\
+ORM        & Object-Relational Mapping \\
+PFE        & Projet de Fin d'Études \\
+RBAC       & Role-Based Access Control \\
+REST       & Representational State Transfer \\
+RPA        & Robotic Process Automation \\
+S3         & Simple Storage Service (stockage objet) \\
+SaaS       & Software as a Service \\
+SDK        & Software Development Kit \\
+SMTP       & Simple Mail Transfer Protocol \\
+SQL        & Structured Query Language \\
+TLS        & Transport Layer Security \\
+TTL        & Time To Live \\
+UML        & Unified Modeling Language \\
+URL        & Uniform Resource Locator \\
+UUID       & Universally Unique Identifier \\
+\bottomrule
+\end{tabular}
+
+% =============================================================
+%      CORPS DU RAPPORT
+% =============================================================
+\cleardoublepage
+\pagenumbering{arabic}
+\setcounter{page}{1}
+
+% =============================================================
+% INTRODUCTION GÉNÉRALE
+% =============================================================
+\clearpage
+\chapter*{Introduction Générale}
+\addcontentsline{toc}{chapter}{Introduction Générale}
+\markboth{Introduction Générale}{Introduction Générale}
+
+\begin{chapintro}
+L'émergence des agents d'intelligence artificielle capables d'agir de
+manière autonome sur le web transforme profondément les processus
+opérationnels des entreprises. Ces agents peuvent désormais naviguer sur
+des portails SaaS, remplir des formulaires, télécharger des factures et
+modifier des paramètres de facturation. Pourtant, le goulot d'étranglement
+n'est plus seulement l'intelligence~: c'est la \textbf{permission}.
+\end{chapintro}
+
+Les entreprises ne peuvent pas confier à des agents autonomes des mots de
+passe bruts, un accès administrateur illimité, une autorité de paiement
+non contrôlée ou un contrôle navigateur sans garde-fous. Les solutions
+RPA traditionnelles et les intégrations API classiques ne couvrent pas le
+besoin de gouvernance fine, d'approbation humaine contextuelle et de
+preuves vérifiables pour chaque action sensible.
+
+\medskip
+\noindent\textbf{Problématique :} Comment concevoir et développer une
+plateforme de gouvernance pour agents IA web, offrant des identités
+dédiées, un coffre-fort de credentials, un moteur de politiques, des
+approbations humaines, une exécution navigateur contrôlée et un audit
+traçable, tout en répondant aux exigences de sécurité, de performance et
+de maintenabilité d'un système distribué moderne ?
+
+\medskip
+\noindent\textbf{Organisation du rapport :} Ce rapport s'articule autour
+de quatre chapitres complémentaires :
+
+\begin{itemize}[leftmargin=2cm, itemsep=3pt]
+  \item \textbf{Chapitre~1 — Cadre du projet :} présentation du contexte,
+    analyse de l'existant, description de la solution AegisWeb et
+    méthodologie de développement incrémental.
+  \item \textbf{Chapitre~2 — Analyse et spécification des besoins :}
+    identification des acteurs, besoins fonctionnels et non
+    fonctionnels, cas d'utilisation et backlog produit.
+  \item \textbf{Chapitre~3 — Conception du système :} architecture
+    monorepo, modélisations dynamique et statique, dictionnaire de
+    données.
+  \item \textbf{Chapitre~4 — Réalisation :} environnement, technologies,
+    livrables par phase, interfaces et résultats des tests.
+\end{itemize}
+
+\input{rapport_pfe_aegisweb_ch1.tex}
+\input{rapport_pfe_aegisweb_ch2.tex}
+\input{rapport_pfe_aegisweb_ch3.tex}
+\input{rapport_pfe_aegisweb_ch4.tex}
+\input{rapport_pfe_aegisweb_conclusion.tex}
+\input{rapport_pfe_aegisweb_annexes.tex}
+
+\end{document}

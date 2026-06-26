@@ -14,6 +14,7 @@ export type WorkerConfig = {
   s3SecretKey: string;
   s3ForcePathStyle: boolean;
   vendorSandboxUrl: string;
+  logLevel: string;
 };
 
 type LoadWorkerConfigOptions = {
@@ -33,7 +34,8 @@ const localDefaults = {
   S3_ACCESS_KEY: 'agentpass',
   S3_SECRET_KEY: 'agentpass-secret',
   S3_FORCE_PATH_STYLE: 'true',
-  VENDOR_SANDBOX_URL: 'http://localhost:4202'
+  VENDOR_SANDBOX_URL: 'http://localhost:4202',
+  LOG_LEVEL: 'debug'
 } as const;
 
 const boolFromEnv = z
@@ -79,7 +81,8 @@ const workerEnvSchema = z.object({
   S3_ACCESS_KEY: z.string().min(1),
   S3_SECRET_KEY: z.string().min(1),
   S3_FORCE_PATH_STYLE: boolFromEnv,
-  VENDOR_SANDBOX_URL: urlString
+  VENDOR_SANDBOX_URL: urlString,
+  LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal', 'silent']).optional().default('info')
 });
 
 export function loadWorkerConfig(env: NodeJS.ProcessEnv = process.env, options: LoadWorkerConfigOptions = {}): WorkerConfig {
@@ -87,9 +90,14 @@ export function loadWorkerConfig(env: NodeJS.ProcessEnv = process.env, options: 
   const mergedEnv = useDefaults ? { ...localDefaults, ...env } : env;
   const parsed = workerEnvSchema.parse(mergedEnv);
 
+  const apiBaseUrl = parsed.API_BASE_URL || `http://localhost:${parsed.API_PORT}`;
+  if (parsed.NODE_ENV === 'production' && !apiBaseUrl.startsWith('https://')) {
+    throw new Error('API_BASE_URL must use HTTPS in production worker configuration.');
+  }
+
   return {
     nodeEnv: parsed.NODE_ENV,
-    apiBaseUrl: parsed.API_BASE_URL || `http://localhost:${parsed.API_PORT}`,
+    apiBaseUrl,
     databaseUrl: parsed.DATABASE_URL,
     redisUrl: parsed.REDIS_URL,
     workerInternalToken: parsed.WORKER_INTERNAL_TOKEN,
@@ -99,7 +107,8 @@ export function loadWorkerConfig(env: NodeJS.ProcessEnv = process.env, options: 
     s3AccessKey: parsed.S3_ACCESS_KEY,
     s3SecretKey: parsed.S3_SECRET_KEY,
     s3ForcePathStyle: parsed.S3_FORCE_PATH_STYLE,
-    vendorSandboxUrl: parsed.VENDOR_SANDBOX_URL
+    vendorSandboxUrl: parsed.VENDOR_SANDBOX_URL,
+    logLevel: parsed.LOG_LEVEL
   };
 }
 

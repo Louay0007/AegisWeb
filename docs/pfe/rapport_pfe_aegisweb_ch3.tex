@@ -1,0 +1,351 @@
+% =============================================================
+% CHAPITRE 3 — CONCEPTION DU SYSTÈME
+% =============================================================
+\chapter{Conception du système}
+
+\begin{chapintro}
+Ce chapitre décrit la conception architecturale et la modélisation du
+système AegisWeb. Nous y présentons l'architecture monorepo, les
+modélisations dynamiques et statiques, ainsi que le dictionnaire de
+données Prisma.
+\end{chapintro}
+
+\section{Architecture générale du système}
+
+\subsection{Architecture logicielle — Monorepo}
+
+AegisWeb repose sur une \textbf{architecture monorepo TypeScript} (pnpm
+workspaces) avec séparation claire entre applications et bibliothèques
+partagées.
+
+\begin{figure}[H]
+\centering
+\diagramespace[6.5cm]{Schéma d'architecture AegisWeb — Utilisateur/Approver
+  $\rightarrow$ Next.js Web (3000) $\rightarrow$ NestJS API (3001)
+  $\rightarrow$ PostgreSQL + Redis/BullMQ + MinIO/S3 — Worker
+  $\rightarrow$ Playwright $\rightarrow$ Vendor Sandbox (4202)}
+\caption{Architecture logicielle globale d'AegisWeb}
+\label{fig:archi_global}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\caption{Composants applicatifs et bibliothèques partagées}
+\label{tab:composants}
+\begin{tabularx}{\textwidth}{@{}p{2.8cm}Xp{4.2cm}@{}}
+\toprule
+\textbf{Composant}   & \textbf{Rôle}                              & \textbf{Technologies} \\
+\midrule
+\rowcolor{rowgray}
+\texttt{apps/web}    & Dashboard + marketing, auth session        & Next.js 16, React 19, Tailwind 4 \\
+\texttt{apps/api}    & Control plane REST, queue, internal API    & NestJS 11, Prisma 7, BullMQ \\
+\rowcolor{rowgray}
+\texttt{apps/worker} & Exécution workflows, Playwright            & NestJS context, BullMQ \\
+\texttt{apps/vendor-sandbox} & Portail SaaS simulé                 & NestJS minimal \\
+\rowcolor{rowgray}
+\texttt{libs/domain} & Enums, permissions, types queue/workflow   & TypeScript pur \\
+\texttt{libs/vault}  & Chiffrement AES-256-GCM, redaction         & Node.js crypto \\
+\rowcolor{rowgray}
+\texttt{libs/policy-engine} & Évaluation politiques/risk          & TypeScript pur \\
+\texttt{libs/browser-runtime} & Wrapper Playwright contrôlé       & Playwright Chromium \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Modules NestJS de l'API}
+
+L'API (\texttt{apps/api/src/app.module.ts}) importe 20+ modules~:
+
+\begin{table}[H]
+\centering
+\caption{Modules principaux de l'API NestJS}
+\label{tab:modules_api}
+\small
+\begin{tabularx}{\textwidth}{@{}p{3.2cm}X@{}}
+\toprule
+\textbf{Module} & \textbf{Responsabilité} \\
+\midrule
+\rowcolor{rowgray}
+AuthModule & Login, register, refresh, logout (Argon2id, JWT, cookies) \\
+AuthorizationModule & JwtAuthGuard, PermissionsGuard, isolation org \\
+\rowcolor{rowgray}
+AgentsModule & CRUD identités agents non-humaines \\
+VendorsModule & Fournisseurs SaaS \\
+\rowcolor{rowgray}
+PoliciesModule & Politiques + évaluation via policy-engine \\
+CredentialsModule & Coffre-fort, grants, métadonnées \\
+\rowcolor{rowgray}
+WorkflowsModule & Définitions de workflows (templates) \\
+WorkflowRunsModule & Exécutions, état, annulation \\
+\rowcolor{rowgray}
+ApprovalsModule & Cycle de vie approbations humaines \\
+QueueModule & Enqueue BullMQ (start, resume, cancel) \\
+\rowcolor{rowgray}
+InternalWorkerModule & Endpoints worker (events, screenshots, vault decrypt) \\
+AuditModule & Événements audit + chaîne hash SHA-256 \\
+\rowcolor{rowgray}
+ReceiptsModule & Artefacts finaux de confiance \\
+FilesModule & Métadonnées + stockage S3 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\textbf{Middleware global (ordre)~:}
+\begin{enumerate}[leftmargin=1.8cm, itemsep=2pt]
+  \item \texttt{RequestContextMiddleware} — user, org, request ID
+  \item \texttt{SecurityHeadersMiddleware}
+  \item \texttt{RateLimitMiddleware} — Redis TTL en production
+  \item \texttt{RequestLoggingMiddleware}
+\end{enumerate}
+
+\subsection{Architecture physique et déploiement}
+
+\begin{figure}[H]
+\centering
+\diagramespace[6.5cm]{Docker Compose — postgres:17 (5432), redis:8 (6379),
+  minio (9000/9001), mailpit (1025/8025), api (3001), worker, web (3000),
+  vendor-sandbox (4202), migrate — profils infra et app}
+\caption{Architecture de déploiement Docker Compose d'AegisWeb}
+\label{fig:archi_deploy}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\caption{Services conteneurisés et ports locaux}
+\label{tab:docker}
+\begin{tabularx}{\textwidth}{@{}p{2.2cm}p{3.2cm}X@{}}
+\toprule
+\textbf{Service} & \textbf{Image/Port}     & \textbf{Rôle} \\
+\midrule
+\rowcolor{rowgray}
+\texttt{postgres} & postgres:17 / 5432   & Base \texttt{agentpass} \\
+\texttt{redis}    & redis:8 / 6379       & BullMQ + rate limit \\
+\rowcolor{rowgray}
+\texttt{minio}    & minio / 9000, 9001   & Stockage S3-compatible \\
+\texttt{mailpit}  & axllent/mailpit      & SMTP 1025, UI 8025 \\
+\rowcolor{rowgray}
+\texttt{api}      & NestJS / 3001        & API REST + Swagger \\
+\texttt{worker}  & NestJS + Playwright  & Consommation jobs \\
+\rowcolor{rowgray}
+\texttt{web}      & Next.js / 3000       & Dashboard \\
+\texttt{vendor-sandbox} & NestJS / 4202 & Portail SaaS factice \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Modélisation dynamique}
+
+\subsection{Diagramme de séquence — Authentification}
+
+\begin{figure}[H]
+\centering
+\diagramespace[7cm]{Séquence Auth — Client $\rightarrow$ POST /auth/login
+  $\rightarrow$ AuthService (Argon2id verify) $\rightarrow$ JWT access
+  (body) + refresh (cookie HttpOnly) $\rightarrow$ cookie
+  aegisweb\_session (middleware) — branche 401 $\rightarrow$ /auth/refresh}
+\caption{Diagramme de séquence — Authentification JWT + refresh}
+\label{fig:seq_auth}
+\end{figure}
+
+\subsection{Diagramme de séquence — Exécution workflow avec approbation}
+
+\begin{figure}[H]
+\centering
+\diagramespace[8cm]{Séquence Workflow — Owner $\rightarrow$ POST
+  /workflow-runs $\rightarrow$ QueueService.enqueue $\rightarrow$ Worker
+  $\rightarrow$ Playwright $\rightarrow$ PolicyEngine.evaluate $\rightarrow$
+  [require\_approval] $\rightarrow$ ApprovalRequest $\rightarrow$ Email
+  $\rightarrow$ Approver $\rightarrow$ POST /approvals/:id/approve
+  $\rightarrow$ resume queue $\rightarrow$ Receipt}
+\caption{Diagramme de séquence — Workflow downgrade avec approbation}
+\label{fig:seq_workflow}
+\end{figure}
+
+\subsection{Diagramme d'activités — Évaluation du moteur de politiques}
+
+\begin{figure}[H]
+\centering
+\diagramespace[6.5cm]{Activités Policy Engine — ActionAttempt reçue
+  $\rightarrow$ Agent actif ? $\rightarrow$ Domaine bloqué ? $\rightarrow$
+  Allowlist OK ? $\rightarrow$ Action interdite ? $\rightarrow$ Seuil
+  montant ? $\rightarrow$ [allow | deny | require\_approval | pause\_agent]
+  + RiskLevel + signaux}
+\caption{Diagramme d'activités — Pipeline d'évaluation des politiques}
+\label{fig:act_policy}
+\end{figure}
+
+\section{Modélisation statique}
+
+\subsection{Modèle de données Prisma — Vue d'ensemble}
+
+Le schéma (\texttt{prisma/schema.prisma}) comprend \textbf{17 modèles}
+principaux et de nombreux enums typés.
+
+\begin{table}[H]
+\centering
+\caption{Domaines fonctionnels et entités Prisma}
+\label{tab:domaines_bd}
+\begin{tabularx}{\textwidth}{@{}p{2.4cm}X@{}}
+\toprule
+\textbf{Domaine}  & \textbf{Modèles / Entités} \\
+\midrule
+\rowcolor{rowgray}
+Identité          & \texttt{Organization}, \texttt{User}, \texttt{RefreshToken} \\
+Agents            & \texttt{Agent} \\
+\rowcolor{rowgray}
+Fournisseurs      & \texttt{Vendor} \\
+Politiques        & \texttt{Policy} \\
+\rowcolor{rowgray}
+Credentials       & \texttt{Credential}, \texttt{CredentialAgentGrant} \\
+Workflows         & \texttt{Workflow}, \texttt{WorkflowRun}, \texttt{ActionAttempt} \\
+\rowcolor{rowgray}
+Approbations      & \texttt{ApprovalRequest} \\
+Audit \& Preuves  & \texttt{AuditEvent}, \texttt{File}, \texttt{Receipt} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Enums métier principaux}
+
+\begin{table}[H]
+\centering
+\caption{Énumérations métier clés}
+\label{tab:enums}
+\small
+\begin{tabularx}{\textwidth}{@{}p{3.2cm}X@{}}
+\toprule
+\textbf{Enum} & \textbf{Valeurs principales} \\
+\midrule
+\rowcolor{rowgray}
+\texttt{UserRole} & owner, admin, approver, auditor, developer \\
+\texttt{WorkflowTemplate} & vendor\_invoice\_download, saas\_renewal\_check,
+  plan\_downgrade\_request \\
+\rowcolor{rowgray}
+\texttt{WorkflowRunStatus} & queued, running, waiting\_for\_approval,
+  completed, failed, canceled, denied \\
+\texttt{PolicyDecision} & allow, deny, require\_approval,
+  require\_step\_up\_auth, pause\_agent \\
+\rowcolor{rowgray}
+\texttt{RiskLevel} & low, medium, high, critical \\
+\texttt{ActionType} & open\_page, read\_page, fill\_form, click\_button,
+  download\_file, change\_plan, cancel\_subscription, \ldots \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Dictionnaire de données — Entité \texttt{WorkflowRun}}
+
+\begin{table}[H]
+\centering
+\caption{Dictionnaire de données — Modèle \texttt{WorkflowRun}}
+\label{tab:dico_run}
+\small
+\begin{tabularx}{\textwidth}{@{}p{3.6cm}p{2.8cm}X@{}}
+\toprule
+\textbf{Attribut} & \textbf{Type} & \textbf{Description} \\
+\midrule
+\texttt{id} & UUID & Clé primaire \\
+\rowcolor{rowgray}
+\texttt{organizationId} & UUID (FK) & Isolation multi-tenant \\
+\texttt{workflowId} & UUID (FK) & Définition parente \\
+\rowcolor{rowgray}
+\texttt{agentId} & UUID (FK) & Agent exécutant \\
+\texttt{status} & WorkflowRunStatus & État courant du run \\
+\rowcolor{rowgray}
+\texttt{stateJson} & JSON & État interne sérialisé (étapes, contexte) \\
+\texttt{requestedByUserId} & UUID & Utilisateur ayant lancé le run \\
+\rowcolor{rowgray}
+\texttt{startedAt} / \texttt{completedAt} & DateTime & Horodatages \\
+\texttt{failureReason} & String? & Raison d'échec si failed \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Dictionnaire de données — Entité \texttt{AuditEvent}}
+
+\begin{table}[H]
+\centering
+\caption{Dictionnaire de données — Modèle \texttt{AuditEvent}}
+\label{tab:dico_audit}
+\small
+\begin{tabularx}{\textwidth}{@{}p{3.6cm}p{2.8cm}X@{}}
+\toprule
+\textbf{Attribut} & \textbf{Type} & \textbf{Description} \\
+\midrule
+\texttt{id} & UUID & Clé primaire \\
+\rowcolor{rowgray}
+\texttt{organizationId} & UUID (FK) & Tenant \\
+\texttt{eventType} & AuditEventType & Type typé (50+ événements) \\
+\rowcolor{rowgray}
+\texttt{actorType} & AuditActorType & user, agent, worker, system \\
+\texttt{actorId} & String? & Identifiant de l'acteur \\
+\rowcolor{rowgray}
+\texttt{prevHash} & String & Hash événement précédent (chaîne) \\
+\texttt{eventHash} & String & SHA-256 de l'événement courant \\
+\rowcolor{rowgray}
+\texttt{payloadJson} & JSON & Données redactées (secrets masqués) \\
+\texttt{createdAt} & DateTime & Horodatage append-only \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Système de files BullMQ}
+
+\begin{table}[H]
+\centering
+\caption{Files BullMQ et types de jobs}
+\label{tab:queues}
+\begin{tabularx}{\textwidth}{@{}p{3.2cm}Xp{3.2cm}@{}}
+\toprule
+\textbf{Queue} & \textbf{Usage} & \textbf{ID job} \\
+\midrule
+\rowcolor{rowgray}
+\texttt{workflow-runs} & Démarrage de workflows &
+  \texttt{start-\{runId\}} \\
+\texttt{workflow-resume} & Reprise après approbation &
+  \texttt{resume-\{runId\}-\{approvalId\}} \\
+\rowcolor{rowgray}
+\texttt{workflow-maintenance} & Signaux d'annulation &
+  \texttt{cancel-\{runId\}} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{RBAC — Matrice des permissions}
+
+\begin{table}[H]
+\centering
+\caption{Rôles utilisateur et permissions principales}
+\label{tab:rbac}
+\small
+\begin{tabularx}{\textwidth}{@{}p{2cm}X@{}}
+\toprule
+\textbf{Rôle} & \textbf{Permissions} \\
+\midrule
+\rowcolor{rowgray}
+owner / admin & Toutes (28 permissions) \\
+approver & Lecture + \texttt{approval:approve} \\
+\rowcolor{rowgray}
+auditor & Lecture + \texttt{audit:read} + \texttt{file:read} \\
+developer & Lecture + \texttt{workflow:run} + \texttt{workflow:cancel} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Schéma entité-relation}
+
+\begin{figure}[H]
+\centering
+\diagramespace[5.5cm]{ER simplifié — Organization (1)--(*) User, Agent,
+  Vendor, Policy, Workflow — Agent (*)--(*) Credential via Grant —
+  Workflow (1)--(*) WorkflowRun (1)--(*) ActionAttempt, ApprovalRequest,
+  Receipt — WorkflowRun (1)--(*) AuditEvent, File}
+\caption{Schéma entité-relation simplifié — base de données AegisWeb}
+\label{fig:er}
+\end{figure}
+
+\conclusionchap{La conception d'AegisWeb révèle une architecture modulaire
+et sécurisée~: monorepo TypeScript, séparation control plane / worker,
+moteur de politiques pur, vault chiffré et modèle de données Prisma riche
+en 17 tables. Ces fondements guident notre implémentation, décrite dans
+le chapitre suivant.}

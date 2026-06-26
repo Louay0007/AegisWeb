@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { AgentStatus, AuditActorType, AuditEventType, Prisma } from '@prisma/client';
 import { DomainError, DomainErrorCode } from '@agentpass/domain';
 import { AuditService } from '../audit/audit.service.js';
+import { PageQuery, pageToSkip, paginationMeta } from '../common/pagination.js';
 import { DatabaseService } from '../database/database.service.js';
 import { ContextUser } from '../request-context/types.js';
 import { AgentIdentifierService } from './agent-identifier.service.js';
@@ -28,17 +29,23 @@ export class AgentsService {
     @Inject(AgentStatusService) private readonly statusRules: AgentStatusService
   ) {}
 
-  async list(organizationId: string | undefined) {
+  async list(organizationId: string | undefined, page: PageQuery) {
     if (!organizationId) {
       throw new DomainError(DomainErrorCode.PermissionDenied, 'Organization context is required.');
     }
 
-    const agents = await this.database.client.agent.findMany({
-      where: { organizationId },
-      orderBy: [{ createdAt: 'asc' }, { name: 'asc' }]
-    });
+    const where = { organizationId };
+    const [agents, total] = await Promise.all([
+      this.database.client.agent.findMany({
+        where,
+        orderBy: [{ createdAt: 'asc' }, { name: 'asc' }],
+        skip: pageToSkip(page),
+        take: page.limit
+      }),
+      this.database.client.agent.count({ where })
+    ]);
 
-    return { data: agents.map(toAgentDto) };
+    return { data: agents.map(toAgentDto), meta: paginationMeta(total, page) };
   }
 
   async get(organizationId: string | undefined, id: string) {

@@ -1,5 +1,7 @@
-import { Logger, NestMiddleware } from '@nestjs/common';
+import { Inject, Injectable, NestMiddleware } from '@nestjs/common';
+import { MetricsService } from '../metrics/metrics.service.js';
 import { RequestContextCarrier, readHeader } from '../request-context/types.js';
+import { PinoLoggingService } from './pino-logger.js';
 
 type NextFunction = () => void;
 type ResponseWithFinishEvent = {
@@ -12,8 +14,12 @@ type LoggableRequest = RequestContextCarrier & {
   url?: string;
 };
 
+@Injectable()
 export class RequestLoggingMiddleware implements NestMiddleware {
-  private readonly logger = new Logger('HTTP');
+  constructor(
+    @Inject(PinoLoggingService) private readonly logger: PinoLoggingService,
+    @Inject(MetricsService) private readonly metrics: MetricsService
+  ) {}
 
   use(request: LoggableRequest, response: ResponseWithFinishEvent, next: NextFunction): void {
     const startedAt = performance.now();
@@ -23,9 +29,28 @@ export class RequestLoggingMiddleware implements NestMiddleware {
 
     response.on('finish', () => {
       const latencyMs = Math.round(performance.now() - startedAt);
-      this.logger.log(`${method} ${url} ${response.statusCode ?? 0} ${latencyMs}ms requestId=${requestId}`);
+      const statusCode = response.statusCode ?? 0;
+      const route = normalizeRoute(url);
+      const context = request.requestContext;
+      this.logger.info('http_request_completed', {
+        method,
+        url,
+        route,
+        statusCode,
+        duration: latencyMs,
+        latencyMs,
+        requestId,
+        orgId: context?.organizationId ?? context?.user?.organizationId,
+        userId: context?.user?.id
+      });
+      this.metrics.observeHttpRequest({ method, route, statusCode: String(statusCode) }, latencyMs);
     });
 
     next();
   }
+}
+
+function normalizeRoute(url: string): string {
+  const [path] = url.split('?');
+  return path.replace(/[0-9a-f]{8}-[0-9a-f-]{27,}/gi, ':id');
 }

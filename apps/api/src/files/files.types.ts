@@ -25,8 +25,6 @@ export type FileDto = {
   organizationId: string;
   workflowRunId: string | null;
   kind: string;
-  bucket: string;
-  objectKey: string;
   mimeType: string;
   sizeBytes: number;
   sha256: string;
@@ -44,8 +42,6 @@ export function toFileDto(file: File): FileDto {
     organizationId: file.organizationId,
     workflowRunId: file.workflowRunId,
     kind: file.kind,
-    bucket: file.bucket,
-    objectKey: file.objectKey,
     mimeType: file.mimeType,
     sizeBytes: file.sizeBytes,
     sha256: file.sha256,

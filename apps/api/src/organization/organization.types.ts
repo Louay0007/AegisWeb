@@ -5,6 +5,7 @@ export type OrganizationDto = {
   name: string;
   domain: string;
   plan: string;
+  billingEmail: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -15,6 +16,7 @@ export function toOrganizationDto(organization: Organization): OrganizationDto {
     name: organization.name,
     domain: organization.domain,
     plan: organization.plan,
+    billingEmail: organization.billingEmail,
     createdAt: organization.createdAt.toISOString(),
     updatedAt: organization.updatedAt.toISOString()
   };

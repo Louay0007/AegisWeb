@@ -103,12 +103,27 @@ Use `prisma migrate deploy`, not `prisma migrate dev`, in staging and production
 
 ## Logs And Metrics
 
-- API logs: request IDs, auth failures, internal errors, CORS/origin rejections.
-- Worker logs: queue name, job ID, workflow run ID, failures, heartbeat entries.
+- API logs are JSON structured through pino. Required fields include `requestId`, `orgId`, `userId`, `duration`, and `statusCode` where available.
+- Worker logs are JSON structured through pino. Required fields include `queueName`, `jobId`, `workflowRunId`, and `workflowTemplate` where available.
+- Prometheus metrics are exposed at `GET /metrics`.
+- Grafana dashboard provisioning lives under `infra/grafana/`.
+- Prometheus scrape and alert rules live under `infra/prometheus/`.
 - Postgres metrics: connection count, slow queries, storage, backup success.
 - Redis metrics: queue depth, memory, CPU, connection count.
 - S3 metrics: object count, bytes stored, failed writes/reads.
 - Mail metrics: delivery failures, bounce rate, approval notification latency.
+
+## Backups
+
+- Run `pnpm backup:postgres` with `DATABASE_URL`, `BACKUP_S3_BUCKET`, and S3 credentials to create a gzip-compressed `pg_dump` archive in object storage.
+- Run `pnpm restore:postgres -- --backup-key <key> --confirm` with `RESTORE_DATABASE_URL` to restore a backup.
+- GitHub workflow `.github/workflows/scheduled-backup.yml` runs daily at 02:00 UTC when production backup secrets are configured.
+- Restore procedures and RTO/RPO targets are documented in `docs/disaster-recovery-runbook.md`.
+
+## Secret Rotation And Incidents
+
+- Secret rotation procedures are documented in `docs/secret-rotation-runbook.md`.
+- Incident triage, communication, evidence preservation, and post-mortem templates are documented in `docs/incident-response-plan.md`.
 
 ## Staging Checklist
 

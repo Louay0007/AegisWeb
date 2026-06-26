@@ -20,6 +20,7 @@ type ErrorResponse = {
 };
 
 type JsonResponse = {
+  setHeader(name: string, value: string): void;
   status(code: number): {
     json(body: ErrorResponse): void;
   };
@@ -27,7 +28,7 @@ type JsonResponse = {
 
 function asErrorMessage(error: unknown): string {
   if (process.env.NODE_ENV === "production") {
-    return "Unexpected server error.";
+    return "Internal Server Error";
   }
   return error instanceof Error ? error.message : "Unexpected server error";
 }
@@ -44,6 +45,9 @@ export class DomainExceptionFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost): void {
     const response = host.switchToHttp().getResponse<JsonResponse>();
     const requestId = this.requestContext.getRequestId();
+    if (requestId) {
+      response.setHeader('x-request-id', requestId);
+    }
 
     if (isDomainError(exception)) {
       response.status(statusForDomainError(exception.code)).json({
@@ -51,7 +55,7 @@ export class DomainExceptionFilter implements ExceptionFilter {
           code: exception.code,
           message: exception.message,
           requestId,
-          details: exception.details,
+          details: process.env.NODE_ENV === 'production' ? undefined : exception.details,
         },
       });
       return;
@@ -92,6 +96,8 @@ function statusForDomainError(code: DomainErrorCode): number {
       return HttpStatus.FORBIDDEN;
     case DomainErrorCode.ValidationFailed:
       return HttpStatus.BAD_REQUEST;
+    case DomainErrorCode.RateLimited:
+      return HttpStatus.TOO_MANY_REQUESTS;
     case DomainErrorCode.ApprovalRequired:
       return HttpStatus.CONFLICT;
     default:

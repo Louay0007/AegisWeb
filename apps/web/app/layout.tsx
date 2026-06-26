@@ -6,6 +6,7 @@ import { AuthSessionProvider } from "@/lib/auth/auth-session";
 import { DataLayerProvider } from "@/lib/data-layer";
 import { Toaster } from "@/components/ui/sonner";
 import { ConsentAnalytics } from "@/components/consent-analytics";
+import { ThemeProvider } from "@/components/theme-provider";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
@@ -39,11 +40,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body className={`${inter.variable} font-sans antialiased`}>
-        <AuthSessionProvider>
-          <DataLayerProvider>{children}</DataLayerProvider>
-        </AuthSessionProvider>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+          <AuthSessionProvider>
+            <DataLayerProvider>{children}</DataLayerProvider>
+          </AuthSessionProvider>
+        </ThemeProvider>
         <Toaster richColors closeButton />
         <ConsentAnalytics />
       </body>

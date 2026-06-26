@@ -7,7 +7,7 @@ vi.mock("@/lib/auth/auth-session", () => ({
   useAuthSession: () => ({
     state: {
       status: "authenticated",
-      session: { accessToken: "t", user: { role: "OWNER" } },
+      session: { user: { role: "OWNER" } },
     },
   }),
 }));

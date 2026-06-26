@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import argon2 from 'argon2';
 
+const DUMMY_PASSWORD = 'aegisweb-missing-user-password-equalizer';
+
 @Injectable()
 export class PasswordService {
   async hashPassword(password: string): Promise<string> {
@@ -18,5 +20,10 @@ export class PasswordService {
     } catch {
       return false;
     }
+  }
+
+  async verifyPasswordForMissingUser(password: string): Promise<boolean> {
+    const hash = await this.hashPassword(DUMMY_PASSWORD);
+    return this.verifyPassword(hash, password);
   }
 }

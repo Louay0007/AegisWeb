@@ -7,10 +7,12 @@ import { fileURLToPath } from "node:url";
 import { AppModule } from "./app.module.js";
 import { ConfigService } from "./config/config.service.js";
 import { setupOpenApi } from "./docs/openapi.js";
+import { PinoLoggingService } from "./logging/pino-logger.js";
 
 export async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { bufferLogs: true, rawBody: true });
   const config = app.get(ConfigService);
+  app.useLogger(app.get(PinoLoggingService));
 
   app.enableCors({
     origin(

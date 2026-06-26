@@ -8,7 +8,8 @@ export const DomainErrorCode = {
   ApprovalRequired: 'APPROVAL_REQUIRED',
   CredentialUnavailable: 'CREDENTIAL_UNAVAILABLE',
   WorkflowInvalidTransition: 'WORKFLOW_INVALID_TRANSITION',
-  SecretLeakDetected: 'SECRET_LEAK_DETECTED'
+  SecretLeakDetected: 'SECRET_LEAK_DETECTED',
+  RateLimited: 'RATE_LIMITED'
 } as const;
 
 export type DomainErrorCode = (typeof DomainErrorCode)[keyof typeof DomainErrorCode];

@@ -1,12 +1,7 @@
 "use client";
 
 import { ApiError } from "@/lib/api/api-errors";
-import {
-  clearAccessToken,
-  readAccessToken,
-  saveAccessToken,
-} from "@/lib/auth/token-storage";
-import { apiUrlFromEnv } from "@/lib/runtime-config";
+import type { PaginationMeta } from "@/lib/api/pagination";
 
 type ApiEnvelope<T> = {
   data?: T;
@@ -20,7 +15,7 @@ type ApiEnvelope<T> = {
 };
 
 export function apiBaseUrl() {
-  return apiUrlFromEnv();
+  return "";
 }
 
 export function createRequestId() {
@@ -34,27 +29,48 @@ export function createRequestId() {
 export async function apiRequest<T>(
   path: string,
   init: RequestInit = {},
-  options: { retry?: boolean } = {},
+  _options: { retry?: boolean } = {},
 ): Promise<T> {
-  const retry = options.retry ?? true;
-  const response = await fetch(`${apiBaseUrl()}${path}`, {
+  const response = await fetch(`${apiBaseUrl()}${bffPath(path)}`, {
     ...init,
     credentials: "include",
-    headers: buildHeaders(init.headers),
+    headers: buildHeaders(init.headers, init.body),
   });
-
-  if (response.status === 401 && retry) {
-    const refreshed = await refreshAccessToken();
-    if (refreshed) {
-      return apiRequest<T>(path, init, { retry: false });
-    }
-  }
 
   return readEnvelope<T>(response);
 }
 
 export async function apiGet<T>(path: string) {
   return apiRequest<T>(path);
+}
+
+export async function apiGetPaginated<T>(
+  path: string,
+): Promise<{ data: T[]; meta: PaginationMeta }> {
+  const response = await fetch(`${apiBaseUrl()}${bffPath(path)}`, {
+    credentials: "include",
+    headers: buildHeaders({}),
+  });
+
+  const json = (await response.json().catch(() => ({}))) as {
+    data?: T[];
+    meta?: PaginationMeta;
+    error?: { code?: string; message?: string };
+    message?: string;
+  };
+
+  if (!response.ok) {
+    throw new ApiError({
+      code: json.error?.code ?? `HTTP_${response.status}`,
+      message: json.error?.message ?? json.message ?? response.statusText,
+      status: response.status,
+    });
+  }
+
+  return {
+    data: (json.data ?? []) as T[],
+    meta: json.meta ?? { total: 0, page: 1, limit: 20, totalPages: 0 },
+  };
 }
 
 export async function apiPost<T>(path: string, body?: unknown) {
@@ -75,16 +91,11 @@ export async function apiDelete<T>(path: string) {
   return apiRequest<T>(path, { method: "DELETE" });
 }
 
-export async function apiDownload(path: string, retry = true) {
-  const response = await fetch(`${apiBaseUrl()}${path}`, {
+export async function apiDownload(path: string) {
+  const response = await fetch(`${apiBaseUrl()}${bffPath(path)}`, {
     credentials: "include",
     headers: buildHeaders(undefined),
   });
-
-  if (response.status === 401 && retry) {
-    const refreshed = await refreshAccessToken();
-    if (refreshed) return apiDownload(path, false);
-  }
 
   if (!response.ok) {
     return readEnvelope<never>(response);
@@ -97,26 +108,10 @@ export async function apiDownload(path: string, retry = true) {
   return { blob, filename };
 }
 
-export async function refreshAccessToken() {
-  try {
-    const data = await apiRequest<{ accessToken: string }>(
-      "/auth/refresh",
-      { method: "POST", body: "{}" },
-      { retry: false },
-    );
-    saveAccessToken(data.accessToken);
-    return data.accessToken;
-  } catch {
-    clearAccessToken();
-    return null;
-  }
-}
-
-function buildHeaders(input: HeadersInit | undefined) {
+function buildHeaders(input: HeadersInit | undefined, body?: BodyInit | null) {
   const headers = new Headers(input);
-  const token = readAccessToken();
 
-  if (!headers.has("content-type")) {
+  if (body !== undefined && body !== null && !headers.has("content-type")) {
     headers.set("content-type", "application/json");
   }
 
@@ -124,11 +119,13 @@ function buildHeaders(input: HeadersInit | undefined) {
     headers.set("x-request-id", createRequestId());
   }
 
-  if (token && !headers.has("authorization")) {
-    headers.set("authorization", `Bearer ${token}`);
-  }
-
   return headers;
+}
+
+function bffPath(path: string): string {
+  if (path.startsWith("/api/")) return path;
+  if (path.startsWith("/auth/")) return `/api${path}`;
+  return `/api/proxy${path.startsWith("/") ? path : `/${path}`}`;
 }
 
 async function readEnvelope<T>(response: Response): Promise<T> {

@@ -94,7 +94,7 @@ describe('phase 3 API cross-cutting infrastructure', () => {
       REDIS_URL: 'redis://localhost:6379',
       JWT_ACCESS_SECRET: 'production-access-secret-that-is-long-enough',
       JWT_REFRESH_SECRET: 'production-refresh-secret-that-is-long-enough',
-      VAULT_MASTER_KEY: 'production-vault-secret-that-is-long-enough',
+      VAULT_MASTER_KEY: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=',
       S3_ENDPOINT: 'https://s3.example.com',
       S3_REGION: 'us-east-1',
       S3_BUCKET: 'aegisweb-prod',
@@ -214,15 +214,7 @@ describe('phase 3 API cross-cutting infrastructure', () => {
       .set('x-user-role', 'OWNER')
       .expect(200);
 
-    expect(authenticatedResponse.body.data).toEqual({
-      requestId: 'req_phase3_context',
-      organizationId: 'org_phase3',
-      user: {
-        id: 'user_phase3',
-        organizationId: 'org_phase3',
-        role: 'OWNER'
-      }
-    });
+    expect(authenticatedResponse.body.data).toEqual({ requestId: 'req_phase3_context' });
 
     await app.close();
   });

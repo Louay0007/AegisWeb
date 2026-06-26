@@ -5,6 +5,8 @@ import { ConfigService } from '../config/config.service.js';
 
 export type AccessTokenPayload = {
   sub: string;
+  iss: string;
+  aud: string;
   userId: string;
   organizationId: string;
   role: string;
@@ -18,13 +20,18 @@ export type AccessTokenPayload = {
 @Injectable()
 export class TokenService {
   readonly accessTokenTtlSeconds = 15 * 60;
+  private readonly issuer = 'aegisweb-api';
+  private readonly audience = 'aegisweb-dashboard';
+  private readonly revokedAccessTokenJtis = new Map<string, number>();
 
   constructor(@Inject(ConfigService) private readonly configService: ConfigService) {}
 
-  signAccessToken(input: Omit<AccessTokenPayload, 'jti' | 'typ' | 'iat' | 'exp'>): string {
+  signAccessToken(input: Omit<AccessTokenPayload, 'iss' | 'aud' | 'jti' | 'typ' | 'iat' | 'exp'>): string {
     const issuedAt = Math.floor(Date.now() / 1000);
     const payload: AccessTokenPayload = {
       ...input,
+      iss: this.issuer,
+      aud: this.audience,
       jti: randomUUID(),
       typ: 'access',
       iat: issuedAt,
@@ -35,9 +42,20 @@ export class TokenService {
   }
 
   verifyAccessToken(token: string): AccessTokenPayload {
-    const [encodedHeader, encodedPayload, signature] = token.split('.');
+    const segments = token.split('.');
+    const [encodedHeader, encodedPayload, signature] = segments;
 
-    if (!encodedHeader || !encodedPayload || !signature) {
+    if (segments.length !== 3 || !encodedHeader || !encodedPayload || !signature) {
+      throw new DomainError(DomainErrorCode.PermissionDenied, 'Authentication required.');
+    }
+
+    const header = parseJson(Buffer.from(encodedHeader, 'base64url').toString('utf8')) as {
+      alg?: string;
+      typ?: string;
+      kid?: unknown;
+    };
+
+    if (header.alg !== 'HS256' || header.typ !== 'JWT' || header.kid !== undefined) {
       throw new DomainError(DomainErrorCode.PermissionDenied, 'Authentication required.');
     }
 
@@ -47,13 +65,29 @@ export class TokenService {
       throw new DomainError(DomainErrorCode.PermissionDenied, 'Authentication required.');
     }
 
-    const payload = JSON.parse(Buffer.from(encodedPayload, 'base64url').toString('utf8')) as AccessTokenPayload;
+    const payload = parseJson(Buffer.from(encodedPayload, 'base64url').toString('utf8')) as AccessTokenPayload;
 
-    if (payload.typ !== 'access' || payload.exp <= Math.floor(Date.now() / 1000)) {
+    if (
+      payload.typ !== 'access' ||
+      payload.iss !== this.issuer ||
+      payload.aud !== this.audience ||
+      payload.exp <= Math.floor(Date.now() / 1000)
+    ) {
+      throw new DomainError(DomainErrorCode.PermissionDenied, 'Authentication required.');
+    }
+
+    this.deleteExpiredRevocations();
+    if (this.revokedAccessTokenJtis.has(payload.jti)) {
       throw new DomainError(DomainErrorCode.PermissionDenied, 'Authentication required.');
     }
 
     return payload;
+  }
+
+  revokeAccessToken(token: string): void {
+    const payload = this.verifyAccessToken(token);
+    this.revokedAccessTokenJtis.set(payload.jti, payload.exp);
+    this.deleteExpiredRevocations();
   }
 
   private sign(payload: AccessTokenPayload): string {
@@ -67,6 +101,23 @@ export class TokenService {
 
   private signature(value: string): string {
     return createHmac('sha256', this.configService.config.jwtAccessSecret).update(value).digest('base64url');
+  }
+
+  private deleteExpiredRevocations(): void {
+    const now = Math.floor(Date.now() / 1000);
+    for (const [jti, expiresAt] of this.revokedAccessTokenJtis) {
+      if (expiresAt <= now) {
+        this.revokedAccessTokenJtis.delete(jti);
+      }
+    }
+  }
+}
+
+function parseJson(value: string): unknown {
+  try {
+    return JSON.parse(value);
+  } catch {
+    throw new DomainError(DomainErrorCode.PermissionDenied, 'Authentication required.');
   }
 }
 

@@ -1,0 +1,26 @@
+groups:
+  - name: aegisweb-production
+    rules:
+      - alert: HighApiErrorRate
+        expr: sum(rate(aegisweb_http_requests_total{statusCode=~"5.."}[5m])) / sum(rate(aegisweb_http_requests_total[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: API 5xx rate is above 5%
+
+      - alert: HighQueueDepth
+        expr: aegisweb_queue_depth > 100
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Workflow queue depth is above 100
+
+      - alert: CredentialDecryptFailures
+        expr: increase(aegisweb_credential_decrypt_total{result="failure"}[5m]) > 3
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: Credential decrypt failures exceeded threshold

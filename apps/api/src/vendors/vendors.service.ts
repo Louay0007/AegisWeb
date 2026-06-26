@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { AuditActorType, AuditEventType, Prisma } from '@prisma/client';
 import { DomainError, DomainErrorCode, VendorCategory, VENDOR_CATEGORIES } from '@agentpass/domain';
 import { AuditService } from '../audit/audit.service.js';
+import { PageQuery, pageToSkip, paginationMeta } from '../common/pagination.js';
 import { DatabaseService } from '../database/database.service.js';
 import { ContextUser } from '../request-context/types.js';
 import { toPrismaVendorCategory } from './vendor-category-mapping.js';
@@ -30,20 +31,23 @@ export class VendorsService {
     @Inject(VendorRiskProfileService) private readonly riskProfiles: VendorRiskProfileService
   ) {}
 
-  async list(organizationId: string | undefined) {
+  async list(organizationId: string | undefined, page: PageQuery) {
     if (!organizationId) {
       throw new DomainError(DomainErrorCode.PermissionDenied, 'Organization context is required.');
     }
 
-    const vendors = await this.database.client.vendor.findMany({
-      where: {
-        organizationId,
-        deletedAt: null
-      },
-      orderBy: [{ name: 'asc' }, { createdAt: 'asc' }]
-    });
+    const where = { organizationId, deletedAt: null };
+    const [vendors, total] = await Promise.all([
+      this.database.client.vendor.findMany({
+        where,
+        orderBy: [{ name: 'asc' }, { createdAt: 'asc' }],
+        skip: pageToSkip(page),
+        take: page.limit
+      }),
+      this.database.client.vendor.count({ where })
+    ]);
 
-    return { data: vendors.map((vendor) => toVendorDto(vendor, this.riskProfiles.build(vendor))) };
+    return { data: vendors.map((vendor) => toVendorDto(vendor, this.riskProfiles.build(vendor))), meta: paginationMeta(total, page) };
   }
 
   async get(organizationId: string | undefined, id: string) {

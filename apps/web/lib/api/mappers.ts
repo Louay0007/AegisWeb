@@ -172,6 +172,7 @@ export type OrganizationDto = {
   name: string;
   domain: string;
   plan: string;
+  billingEmail?: string | null;
 };
 
 export type UserDto = {
@@ -180,6 +181,8 @@ export type UserDto = {
   name: string;
   role: string;
   status: string;
+  lastLoginAt?: string | null;
+  emailVerifiedAt?: string | null;
 };
 
 export function mapAgent(dto: AgentDto): AgentFixture {

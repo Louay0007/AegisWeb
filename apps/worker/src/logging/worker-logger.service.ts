@@ -1,22 +1,20 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { Logger } from 'pino';
+import { createWorkerPinoLogger } from './worker-pino-logger.js';
 
 @Injectable()
 export class WorkerLogger {
-  private readonly logger = new Logger('AgentPassWorker');
+  private readonly logger: Logger = createWorkerPinoLogger();
 
   info(message: string, metadata: Record<string, unknown> = {}): void {
-    this.logger.log(format(message, metadata));
+    this.logger.info(metadata, message);
   }
 
   warn(message: string, metadata: Record<string, unknown> = {}): void {
-    this.logger.warn(format(message, metadata));
+    this.logger.warn(metadata, message);
   }
 
   error(message: string, error: unknown, metadata: Record<string, unknown> = {}): void {
-    this.logger.error(format(message, { ...metadata, error: error instanceof Error ? error.message : String(error) }));
+    this.logger.error({ ...metadata, error: error instanceof Error ? error.message : String(error) }, message);
   }
-}
-
-function format(message: string, metadata: Record<string, unknown>): string {
-  return Object.keys(metadata).length > 0 ? `${message} ${JSON.stringify(metadata)}` : message;
 }

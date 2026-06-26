@@ -39,7 +39,6 @@ export type WorkflowQueueEnqueueResult = {
 export type WorkflowQueueJobDiagnostics = {
   queueName: WorkflowQueueName;
   jobId: string;
-  name: string | null;
   state: string | null;
   attemptsMade: number | null;
   failedReason: string | null;

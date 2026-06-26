@@ -1,9 +1,9 @@
 import { Module } from '@nestjs/common';
-import { WorkerDatabaseModule } from '../database/worker-database.module.js';
+import { InternalApiModule } from '../internal-api/internal-api.module.js';
 import { WorkerAuditService } from './worker-audit.service.js';
 
 @Module({
-  imports: [WorkerDatabaseModule],
+  imports: [InternalApiModule],
   providers: [WorkerAuditService],
   exports: [WorkerAuditService]
 })

@@ -5,7 +5,9 @@ import {
   GitBranch,
   Key,
   Page,
+  Book,
   SettingsProfiles,
+  Compass,
   ShieldCheck,
   TaskList,
   UserBadgeCheck,
@@ -13,6 +15,7 @@ import {
 
 export const appNavItems = [
   { label: "Home", href: "/app/home", icon: DashboardDots },
+  { label: "Getting Started", href: "/app/getting-started", icon: Compass },
   { label: "Agents", href: "/app/agents", icon: UserBadgeCheck },
   { label: "Policies", href: "/app/policies", icon: ShieldCheck },
   { label: "Credentials", href: "/app/credentials", icon: Key },
@@ -22,6 +25,7 @@ export const appNavItems = [
   { label: "Approvals", href: "/app/approvals", icon: CheckCircle },
   { label: "Receipts", href: "/app/receipts", icon: Page },
   { label: "Audit", href: "/app/audit", icon: TaskList },
+  { label: "Help", href: "/app/help", icon: Book },
   { label: "Settings", href: "/app/settings", icon: SettingsProfiles },
 ];
 

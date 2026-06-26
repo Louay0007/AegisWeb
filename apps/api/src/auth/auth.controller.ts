@@ -4,7 +4,9 @@ import {
   Get,
   Headers,
   Inject,
+  Param,
   Post,
+  Query,
   Req,
   Res,
 } from "@nestjs/common";
@@ -22,8 +24,11 @@ import {
 import {
   loginSchema,
   logoutSchema,
+  forgotPasswordSchema,
   refreshSchema,
   registerSchema,
+  resetPasswordSchema,
+  verifyEmailSchema,
 } from "./dto.js";
 
 const REFRESH_COOKIE_NAME = "agentpass_refresh_token";
@@ -62,6 +67,9 @@ export class AuthController {
     const result = await this.authService.login(
       parseOrThrow(loginSchema, body),
     );
+    if (!hasRefreshToken(result)) {
+      return result;
+    }
     writeRefreshCookie(
       response,
       result.refreshToken,
@@ -69,6 +77,29 @@ export class AuthController {
       this.configService.config.nodeEnv,
     );
     return resultWithoutRefreshToken(result);
+  }
+
+  @PublicRoute()
+  @Post("forgot-password")
+  forgotPassword(@Body() body: unknown) {
+    return this.authService.forgotPassword(parseOrThrow(forgotPasswordSchema, body));
+  }
+
+  @PublicRoute()
+  @Post("reset-password")
+  resetPassword(@Body() body: unknown) {
+    return this.authService.resetPassword(parseOrThrow(resetPasswordSchema, body));
+  }
+
+  @PublicRoute()
+  @Get("verify")
+  verifyEmail(@Query("token") token: string | undefined) {
+    return this.authService.verifyEmail(parseOrThrow(verifyEmailSchema, { token }));
+  }
+
+  @Post("resend-verification")
+  resendVerification(@Headers() headers: Record<string, string | string[] | undefined>) {
+    return this.authService.resendVerification(readAuthorizationBearer(headers));
   }
 
   @PublicRoute()
@@ -126,6 +157,16 @@ export class AuthController {
   @Get("me")
   async me(@Headers() headers: Record<string, string | string[] | undefined>) {
     return this.authService.me(readAuthorizationBearer(headers));
+  }
+
+  @Get("sessions")
+  async sessions(@Headers() headers: Record<string, string | string[] | undefined>) {
+    return this.authService.listSessions(readAuthorizationBearer(headers));
+  }
+
+  @Post("sessions/:id/revoke")
+  async revokeSession(@Headers() headers: Record<string, string | string[] | undefined>, @Param("id") id: string) {
+    return this.authService.revokeSession(readAuthorizationBearer(headers), id);
   }
 }
 
@@ -211,4 +252,8 @@ function resultWithoutRefreshToken<T extends { data: unknown }>(
   result: T,
 ): Pick<T, "data"> {
   return { data: result.data };
+}
+
+function hasRefreshToken(result: unknown): result is { refreshToken: string; refreshTokenMaxAgeSeconds: number; data: unknown } {
+  return typeof result === "object" && result !== null && "refreshToken" in result && "refreshTokenMaxAgeSeconds" in result;
 }

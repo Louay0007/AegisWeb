@@ -33,25 +33,12 @@ describe('web dashboard API client', () => {
     } satisfies Partial<ApiError>);
   });
 
-  it('refreshes once on 401 and retries the original request', async () => {
-    const storage = new Map<string, string>();
-    vi.stubGlobal('window', {});
-    vi.stubGlobal('localStorage', {
-      getItem: (key: string) => storage.get(key) ?? null,
-      setItem: (key: string, value: string) => storage.set(key, value),
-      removeItem: (key: string) => storage.delete(key)
-    });
-
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(new Response(JSON.stringify({ error: { code: 'UNAUTHORIZED', message: 'Expired.' } }), { status: 401 }))
-      .mockResolvedValueOnce(new Response(JSON.stringify({ data: { accessToken: 'fresh-token' } }), { status: 201 }))
-      .mockResolvedValueOnce(new Response(JSON.stringify({ data: [{ id: 'agent-1' }] }), { status: 200 }));
+  it('routes API requests through the same-origin BFF proxy without JS tokens', async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({ data: [{ id: 'agent-1' }] }), { status: 200 }));
     vi.stubGlobal('fetch', fetchMock);
 
     await expect(apiGet<Array<{ id: string }>>('/agents')).resolves.toEqual([{ id: 'agent-1' }]);
-    expect(fetchMock).toHaveBeenCalledTimes(3);
-    expect(storage.get('aegisweb.access_token')).toBe('fresh-token');
+    expect(fetchMock).toHaveBeenCalledWith('/api/proxy/agents', expect.objectContaining({ credentials: 'include' }));
   });
 });
 

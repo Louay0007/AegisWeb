@@ -180,7 +180,7 @@ describe('phase 6 audit module', () => {
         items: [{ apiToken: 'raw-token' }]
       })
     ).toEqual({
-      username: 'safe-user',
+      username: '[REDACTED]',
       password: '[REDACTED]',
       nested: {
         authorization: '[REDACTED]',

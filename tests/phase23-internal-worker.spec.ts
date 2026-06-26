@@ -232,6 +232,7 @@ describe('phase 23 internal worker API', () => {
   });
 
   it('stores screenshots and worker files only for the scoped run', async () => {
+    const screenshotBytes = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00]);
     const screenshot = await request(app.getHttpServer())
       .post(`/internal/workers/runs/${runningRunId}/screenshots`)
       .set('x-worker-token', config.config.workerInternalToken)
@@ -239,7 +240,7 @@ describe('phase 23 internal worker API', () => {
         organizationId: organizationAId,
         filename: 'billing-page.png',
         mimeType: 'image/png',
-        bufferBase64: Buffer.from('phase23 screenshot bytes').toString('base64')
+        bufferBase64: screenshotBytes.toString('base64')
       })
       .expect(201);
 
@@ -248,7 +249,7 @@ describe('phase 23 internal worker API', () => {
       workflowRunId: runningRunId,
       kind: FileKind.SCREENSHOT,
       mimeType: 'image/png',
-      sizeBytes: Buffer.byteLength('phase23 screenshot bytes')
+      sizeBytes: screenshotBytes.length
     });
 
     const file = await request(app.getHttpServer())

@@ -5,6 +5,7 @@ import { DomainError, DomainErrorCode, issueWorkerRunToken } from '@agentpass/do
 import { AuditService } from '../audit/audit.service.js';
 import { ConfigService } from '../config/config.service.js';
 import { DatabaseService } from '../database/database.service.js';
+import { MetricsService } from '../metrics/metrics.service.js';
 import { connectionFromRedisUrl } from './queue-redis.js';
 import {
   EnqueueWorkflowCancelInput,
@@ -48,7 +49,8 @@ export class WorkflowQueueService implements OnModuleDestroy {
   constructor(
     @Inject(ConfigService) private readonly config: ConfigService,
     @Inject(DatabaseService) private readonly database: DatabaseService,
-    @Inject(AuditService) private readonly audit: AuditService
+    @Inject(AuditService) private readonly audit: AuditService,
+    @Inject(MetricsService) private readonly metrics: MetricsService
   ) {
     const connection = connectionFromRedisUrl(this.config.redisUrl);
     this.queues = {
@@ -126,6 +128,7 @@ export class WorkflowQueueService implements OnModuleDestroy {
     const state = await job.getState();
     if (state === 'waiting' || state === 'delayed' || state === 'prioritized') {
       await job.remove();
+      await this.recordQueueDepth(WORKFLOW_QUEUE_NAMES.runs);
       return true;
     }
 
@@ -247,8 +250,15 @@ export class WorkflowQueueService implements OnModuleDestroy {
       ...options,
       jobId
     });
+    this.metrics.recordWorkflowRun('queued', data.template ?? 'unknown');
+    await this.recordQueueDepth(queueName);
 
     return { jobId: String(job.id), queueName, created: true };
+  }
+
+  private async recordQueueDepth(queueName: WorkflowQueueName): Promise<void> {
+    const counts = await this.queues[queueName].getJobCounts('waiting', 'delayed', 'prioritized');
+    this.metrics.setQueueDepth(queueName, Object.values(counts).reduce((sum, count) => sum + count, 0));
   }
 
   private issueRunToken(organizationId: string, workflowRunId: string): string {
@@ -263,7 +273,6 @@ export class WorkflowQueueService implements OnModuleDestroy {
     return {
       queueName,
       jobId: String(job.id),
-      name: job.name,
       state: await job.getState(),
       attemptsMade: job.attemptsMade,
       failedReason: job.failedReason ?? null,
@@ -277,7 +286,6 @@ export class WorkflowQueueService implements OnModuleDestroy {
     return {
       queueName,
       jobId,
-      name: null,
       state: null,
       attemptsMade: null,
       failedReason: null,

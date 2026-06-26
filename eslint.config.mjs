@@ -3,7 +3,7 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    ignores: ['node_modules/**', 'dist/**', 'coverage/**', '.next/**', 'apps/web/.next/**']
+    ignores: ['node_modules/**', 'dist/**', 'coverage/**', '.next/**', 'apps/web/.next/**', 'lighthouserc.cjs']
   },
   eslint.configs.recommended,
   ...tseslint.configs.recommended,

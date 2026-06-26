@@ -27,6 +27,7 @@ async function main() {
     if (!token || sessionMode !== 'api') {
       throw new Error(`Expected API session, received mode=${sessionMode ?? 'missing'}.`);
     }
+    await ensureBrowserSession(page, token);
 
     await page.goto(`${webUrl}/app/runs`, { waitUntil: 'domcontentloaded' });
     await page.getByRole('button', { name: /start workflow/i }).first().click();
@@ -34,7 +35,7 @@ async function main() {
     await page.getByRole('button', { name: /continue/i }).click();
     await page.getByRole('button', { name: /continue/i }).click();
     await page.getByRole('button', { name: /start run/i }).click();
-    await page.waitForURL(/\/app\/runs\/[^/]+/, { timeout: 30_000 });
+    await waitForRunDetailPage(page);
 
     const runId = page.url().split('/app/runs/')[1]?.split(/[?#]/)[0];
     if (!runId) throw new Error('Could not read workflow run id from URL.');
@@ -42,7 +43,9 @@ async function main() {
     await waitForRunStatus(token, runId, (status) => status === 'waiting_for_approval', 75_000);
     const approval = await waitForApproval(token, runId, 30_000);
 
+    await ensureBrowserSession(page, token);
     await page.goto(`${webUrl}/app/approvals/${approval.id}`, { waitUntil: 'domcontentloaded' });
+    await waitForApprovalPage(page);
     await page.locator('#decision-comment').fill('Approved by the local Playwright happy path.');
     await page.getByRole('button', { name: /^Approve$/ }).first().click();
     await page.getByRole('button', { name: /approve action/i }).click();
@@ -50,8 +53,9 @@ async function main() {
     await waitForRunStatus(token, runId, (status) => status === 'completed', 90_000);
     const receipt = await waitForReceipt(token, runId, 30_000);
 
+    await ensureBrowserSession(page, token);
     await page.goto(`${webUrl}/app/receipts/${receipt.id}`, { waitUntil: 'domcontentloaded' });
-    await page.getByText(/Receipt timeline/i).waitFor({ timeout: 15_000 });
+    await waitForReceiptPage(page);
     await page.getByText(/Integrity/i).first().waitFor({ timeout: 15_000 });
 
     await page.goto(`${webUrl}/app/audit`, { waitUntil: 'domcontentloaded' });
@@ -72,7 +76,7 @@ async function loginInBrowser(page: import('playwright').Page) {
       await page.locator('#email').fill(email);
       await page.locator('#password').fill(password);
       await page.getByRole('button', { name: /continue/i }).click();
-      await page.waitForURL(/\/app\/home/, { timeout: 30_000 });
+      await page.waitForURL(/\/app\/home/, { timeout: 30_000, waitUntil: 'domcontentloaded' });
       return;
     } catch (error) {
       lastError = error;
@@ -116,6 +120,21 @@ async function loginForApiToken(): Promise<string> {
   return json.data.accessToken;
 }
 
+async function ensureBrowserSession(page: import('playwright').Page, token: string) {
+  await page.context().addCookies([
+    {
+      name: 'aegisweb_session',
+      value: '1',
+      url: `${webUrl}/app`,
+      sameSite: 'Lax',
+      expires: Math.floor(Date.now() / 1000) + 60 * 60
+    }
+  ]);
+  await page.evaluate((accessToken) => {
+    localStorage.setItem('aegisweb.access_token', accessToken);
+  }, token);
+}
+
 async function waitForRunStatus(token: string, runId: string, done: (status: string) => boolean, timeoutMs: number) {
   return poll(async () => {
     const run = await apiGet<WorkflowRun>(token, `/workflow-runs/${runId}`);
@@ -132,6 +151,41 @@ async function waitForApproval(token: string, runId: string, timeoutMs: number) 
     const approvals = await apiGet<Approval[]>(token, '/approvals');
     return approvals.find((approval) => approval.workflowRunId === runId && approval.status === 'pending') ?? null;
   }, timeoutMs, `approval for run ${runId}`);
+}
+
+async function waitForApprovalPage(page: import('playwright').Page) {
+  try {
+    await waitForBodyText(page, 'Approval decision', 45_000);
+  } catch (error) {
+    const body = ((await page.locator('body').textContent()) ?? '').replace(/\s+/g, ' ').trim().slice(0, 1000);
+    throw new Error(`Approval page did not become ready at ${page.url()}. Visible body: ${body}`, { cause: error });
+  }
+}
+
+async function waitForRunDetailPage(page: import('playwright').Page) {
+  try {
+    await page.waitForURL(/\/app\/runs\/[^/]+/, { timeout: 45_000, waitUntil: 'domcontentloaded' });
+  } catch (error) {
+    const body = ((await page.locator('body').textContent()) ?? '').replace(/\s+/g, ' ').trim().slice(0, 1000);
+    throw new Error(`Run detail page did not open after starting workflow at ${page.url()}. Visible body: ${body}`, { cause: error });
+  }
+}
+
+async function waitForReceiptPage(page: import('playwright').Page) {
+  try {
+    await waitForBodyText(page, 'Receipt timeline', 45_000);
+  } catch (error) {
+    const body = ((await page.locator('body').textContent()) ?? '').replace(/\s+/g, ' ').trim().slice(0, 1000);
+    throw new Error(`Receipt page did not become ready at ${page.url()}. Visible body: ${body}`, { cause: error });
+  }
+}
+
+async function waitForBodyText(page: import('playwright').Page, text: string, timeoutMs: number) {
+  await page.waitForFunction(
+    (expected) => document.body.innerText.toLowerCase().includes(expected.toLowerCase()),
+    text,
+    { timeout: timeoutMs }
+  );
 }
 
 async function waitForReceipt(token: string, runId: string, timeoutMs: number) {

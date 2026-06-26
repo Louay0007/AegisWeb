@@ -1,3 +1,35 @@
 packages:
   - "apps/*"
   - "libs/*"
+
+allowBuilds:
+  '@nestjs/core': true
+  '@prisma/engines': true
+  '@scarf/scarf': false
+  argon2: true
+  esbuild: true
+  libxmljs2: set this to true or false
+  msgpackr-extract: true
+  msw: false
+  prisma: true
+  sharp: true
+
+overrides:
+  '@hono/node-server': ">=1.19.13"
+  hono: ">=4.12.25"
+  js-yaml: ">=4.1.2"
+  multer: ">=2.2.0"
+  postcss: ">=8.5.10"
+
+onlyBuiltDependencies:
+  - "@nestjs/core"
+  - "@prisma/engines"
+  - argon2
+  - esbuild
+  - msgpackr-extract
+  - prisma
+  - sharp
+
+ignoredBuiltDependencies:
+  - "@scarf/scarf"
+  - msw

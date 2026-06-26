@@ -1,0 +1,122 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  NODE_VERSION: '22'
+  PNPM_VERSION: '10.25.0'
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ghcr.io/${{ github.repository }}
+
+jobs:
+  deploy-staging:
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:generate
+      - name: Build and push images
+        run: |
+          IMAGE_PREFIX_LOWER=$(printf '%s' "$IMAGE_PREFIX" | tr '[:upper:]' '[:lower:]')
+          docker build --target api -t $IMAGE_PREFIX_LOWER/api:${{ github.sha }} .
+          docker build --target worker -t $IMAGE_PREFIX_LOWER/worker:${{ github.sha }} .
+          docker build --target web --build-arg NEXT_PUBLIC_API_URL=${{ vars.STAGING_API_URL }} -t $IMAGE_PREFIX_LOWER/web:${{ github.sha }} .
+          docker push $IMAGE_PREFIX_LOWER/api:${{ github.sha }}
+          docker push $IMAGE_PREFIX_LOWER/worker:${{ github.sha }}
+          docker push $IMAGE_PREFIX_LOWER/web:${{ github.sha }}
+      - name: Run staging migrations
+        env:
+          DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+        run: pnpm db:deploy
+      - name: Deploy Render staging services
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_API_SERVICE_ID: ${{ secrets.RENDER_STAGING_API_SERVICE_ID }}
+          RENDER_WORKER_SERVICE_ID: ${{ secrets.RENDER_STAGING_WORKER_SERVICE_ID }}
+          RENDER_WEB_SERVICE_ID: ${{ secrets.RENDER_STAGING_WEB_SERVICE_ID }}
+        run: |
+          for service_id in "$RENDER_API_SERVICE_ID" "$RENDER_WORKER_SERVICE_ID" "$RENDER_WEB_SERVICE_ID"; do
+            curl --fail --silent --show-error --request POST \
+              --url "https://api.render.com/v1/services/$service_id/deploys" \
+              --header "Authorization: Bearer $RENDER_API_KEY" \
+              --header "Content-Type: application/json" \
+              --data '{"clearCache":"do_not_clear"}'
+          done
+      - name: Run staging smoke tests
+        env:
+          API_BASE_URL: ${{ vars.STAGING_API_URL }}
+          DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+          REDIS_URL: ${{ secrets.STAGING_REDIS_URL }}
+          S3_ENDPOINT: ${{ secrets.STAGING_S3_ENDPOINT }}
+          S3_REGION: ${{ secrets.STAGING_S3_REGION }}
+          S3_BUCKET: ${{ secrets.STAGING_S3_BUCKET }}
+          S3_ACCESS_KEY: ${{ secrets.STAGING_S3_ACCESS_KEY }}
+          S3_SECRET_KEY: ${{ secrets.STAGING_S3_SECRET_KEY }}
+        run: pnpm smoke
+      - name: Run staging happy path
+        env:
+          API_BASE_URL: ${{ vars.STAGING_API_URL }}
+          WEB_BASE_URL: ${{ vars.STAGING_WEB_URL }}
+          E2E_API_URL: ${{ vars.STAGING_API_URL }}
+          E2E_WEB_URL: ${{ vars.STAGING_WEB_URL }}
+        run: pnpm e2e:happy
+
+  deploy-production:
+    runs-on: ubuntu-latest
+    needs: [deploy-staging]
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:generate
+      - name: Run production migrations
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+        run: pnpm db:deploy
+      - name: Promote Render production services
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_API_SERVICE_ID: ${{ secrets.RENDER_PRODUCTION_API_SERVICE_ID }}
+          RENDER_WORKER_SERVICE_ID: ${{ secrets.RENDER_PRODUCTION_WORKER_SERVICE_ID }}
+          RENDER_WEB_SERVICE_ID: ${{ secrets.RENDER_PRODUCTION_WEB_SERVICE_ID }}
+        run: |
+          for service_id in "$RENDER_API_SERVICE_ID" "$RENDER_WORKER_SERVICE_ID" "$RENDER_WEB_SERVICE_ID"; do
+            curl --fail --silent --show-error --request POST \
+              --url "https://api.render.com/v1/services/$service_id/deploys" \
+              --header "Authorization: Bearer $RENDER_API_KEY" \
+              --header "Content-Type: application/json" \
+              --data '{"clearCache":"do_not_clear"}'
+          done
+      - name: Production health checks
+        run: |
+          curl --fail --silent --show-error --max-time 30 ${{ vars.PRODUCTION_API_URL }}/health
+          curl --fail --silent --show-error --max-time 30 ${{ vars.PRODUCTION_API_URL }}/health/ready
+          curl --fail --silent --show-error --max-time 30 ${{ vars.PRODUCTION_WEB_URL }}/login

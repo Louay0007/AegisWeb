@@ -5,6 +5,8 @@ import { Bell, LogOut, Refresh, User } from "iconoir-react";
 
 import { Button } from "@/components/ui/button";
 import { DashboardGlobalSearch } from "@/components/dashboard/dashboard-global-search";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
+import { HelpMenu } from "@/components/support/help-menu";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -61,6 +63,8 @@ export function TopBar({ session }: TopBarProps) {
 
         <div className="flex items-center gap-2">
           <DashboardGlobalSearch />
+          <HelpMenu />
+          <ThemeToggle />
           <Button
             variant="outline"
             size="icon"

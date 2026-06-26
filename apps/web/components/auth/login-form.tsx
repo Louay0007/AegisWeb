@@ -21,16 +21,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
-import { useAuthSession, authErrorMessage } from "@/lib/auth/auth-session";
+import { useAuthSession, authErrorMessage, MfaRequiredError } from "@/lib/auth/auth-session";
 import { isDemoModeEnabled } from "@/lib/runtime-config";
 
-import { DEMO_PASSWORD, DEMO_USERS, demoSessionFor } from "./auth-client";
+import { DEMO_PASSWORD, DEMO_USERS } from "./auth-client";
 
 gsap.registerPlugin(useGSAP);
 
 export function LoginForm() {
   const router = useRouter();
-  const { signIn, saveDemoSession } = useAuthSession();
+  const { signIn } = useAuthSession();
   const formRef = useRef<HTMLDivElement | null>(null);
   const demoEnabled = isDemoModeEnabled();
   const [email, setEmail] = useState(demoEnabled ? DEMO_USERS[0].email : "");
@@ -97,17 +97,10 @@ export function LoginForm() {
       await signIn(email, password);
       router.push("/app/home");
     } catch (apiError) {
-      const fallback =
-        demoEnabled && password === DEMO_PASSWORD
-          ? demoSessionFor(email)
-          : null;
-
-      if (fallback) {
-        saveDemoSession(fallback);
-        router.push("/app/home?demo=1");
+      if (apiError instanceof MfaRequiredError) {
+        router.push(`/mfa-challenge?token=${encodeURIComponent(apiError.tempToken)}`);
         return;
       }
-
       setError(authErrorMessage(apiError));
       setStatus("idle");
     }
@@ -160,10 +153,10 @@ export function LoginForm() {
             <div className="flex items-center justify-between gap-4">
               <Label htmlFor="password">Password</Label>
               <Link
-                href="/register"
+                href="/forgot-password"
                 className="text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
               >
-                Need access?
+                Forgot password?
               </Link>
             </div>
             <div className="relative group">

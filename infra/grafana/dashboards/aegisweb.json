@@ -1,0 +1,50 @@
+{
+  "title": "AegisWeb Production Health",
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "API request latency p95",
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+      "targets": [
+        { "expr": "histogram_quantile(0.95, sum(rate(aegisweb_http_request_duration_seconds_bucket[5m])) by (le, route))", "legendFormat": "{{route}}" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "API 5xx error rate",
+      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+      "targets": [
+        { "expr": "sum(rate(aegisweb_http_requests_total{statusCode=~\"5..\"}[5m])) by (route)", "legendFormat": "{{route}}" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Workflow queue depth",
+      "gridPos": { "x": 0, "y": 8, "w": 8, "h": 8 },
+      "targets": [
+        { "expr": "aegisweb_queue_depth", "legendFormat": "{{queueName}}" }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Pending approvals",
+      "gridPos": { "x": 8, "y": 8, "w": 8, "h": 8 },
+      "targets": [
+        { "expr": "aegisweb_approvals_pending", "legendFormat": "pending" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Credential operations",
+      "gridPos": { "x": 16, "y": 8, "w": 8, "h": 8 },
+      "targets": [
+        { "expr": "increase(aegisweb_credential_decrypt_total[5m])", "legendFormat": "decrypt {{result}}" },
+        { "expr": "increase(aegisweb_credential_grants_total[5m])", "legendFormat": "grant {{result}}" }
+      ]
+    }
+  ]
+}

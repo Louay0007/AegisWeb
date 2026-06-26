@@ -38,10 +38,3 @@ export function setFixtureMode(enabled: boolean) {
     }
   }
 }
-
-export function readAccessToken(): string | null {
-  if (typeof window === "undefined") {
-    return null;
-  }
-  return window.localStorage.getItem("aegisweb.access_token");
-}

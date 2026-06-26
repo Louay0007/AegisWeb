@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 
+import { PaginationControls } from "@/components/data/pagination-controls";
 import { StatePanel } from "@/components/data/state-panel";
+import type { PaginationMeta } from "@/lib/api/pagination";
 import { cn } from "@/lib/utils";
 
 export type DataTableColumn<T> = {
@@ -19,6 +21,9 @@ export function DataTable<T extends { id: string }>({
   error,
   onRetry,
   onRowAction,
+  pagination,
+  onPageChange,
+  updatedAt,
 }: {
   columns: DataTableColumn<T>[];
   rows: T[];
@@ -27,6 +32,9 @@ export function DataTable<T extends { id: string }>({
   error?: string;
   onRetry?: () => void;
   onRowAction?: (row: T) => void;
+  pagination?: PaginationMeta;
+  onPageChange?: (page: number) => void;
+  updatedAt?: number;
 }) {
   if (loading) {
     return <StatePanel state="loading" title="Loading records" description="AegisWeb is fetching the latest evidence and authority state." />;
@@ -99,6 +107,27 @@ export function DataTable<T extends { id: string }>({
           </article>
         ))}
       </div>
+      {pagination ? (
+        <div className="border-t border-border">
+          {updatedAt ? <DataFreshness updatedAt={updatedAt} /> : null}
+          <PaginationControls
+            page={pagination.page}
+            pageCount={pagination.totalPages}
+            total={pagination.total}
+            onPrevious={onPageChange ? () => onPageChange(pagination.page - 1) : undefined}
+            onNext={onPageChange ? () => onPageChange(pagination.page + 1) : undefined}
+            onPageChange={onPageChange}
+          />
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function DataFreshness({ updatedAt }: { updatedAt: number }) {
+  return (
+    <div className="border-b border-border bg-muted/30 px-4 py-2 text-xs text-muted-foreground">
+      Last updated {new Date(updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
     </div>
   );
 }

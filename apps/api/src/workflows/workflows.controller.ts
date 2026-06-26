@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Inject, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Get, Inject, Param, Patch, Post, Query } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import {
@@ -11,6 +11,7 @@ import {
   WorkflowTemplate
 } from '@agentpass/domain';
 import { RequirePermission } from '../authorization/authorization-metadata.js';
+import { parsePageQuery, QueryRecord } from '../common/pagination.js';
 import { CurrentOrganizationId } from '../request-context/current-organization-id.decorator.js';
 import { CurrentUser } from '../request-context/current-user.decorator.js';
 import { ContextUser } from '../request-context/types.js';
@@ -56,8 +57,8 @@ export class WorkflowsController {
 
   @RequirePermission(Permission.WorkflowRead)
   @Get()
-  list(@CurrentOrganizationId() organizationId: string | undefined) {
-    return this.workflowsService.list(organizationId);
+  list(@CurrentOrganizationId() organizationId: string | undefined, @Query() query: QueryRecord) {
+    return this.workflowsService.list(organizationId, parsePageQuery(query));
   }
 
   @RequirePermission(Permission.WorkflowCreate)

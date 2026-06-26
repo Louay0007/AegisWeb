@@ -1,0 +1,323 @@
+% =============================================================
+% CHAPITRE 2 — ANALYSE ET SPÉCIFICATION DES BESOINS
+% =============================================================
+\chapter{Analyse et spécification des besoins}
+
+\begin{chapintro}
+Ce chapitre est dédié à l'analyse des besoins de la plateforme AegisWeb.
+Nous y identifions les acteurs, détaillons les besoins fonctionnels et
+non fonctionnels, présentons les diagrammes de cas d'utilisation et
+définissons le backlog produit initial.
+\end{chapintro}
+
+\section{Identification des acteurs}
+
+\begin{table}[H]
+\centering
+\caption{Tableau des acteurs du système AegisWeb}
+\label{tab:acteurs}
+\begin{tabularx}{\textwidth}{@{}llX@{}}
+\toprule
+\textbf{Acteur}             & \textbf{Type}   & \textbf{Rôle et description} \\
+\midrule
+\rowcolor{rowgray}
+Owner / Admin               & Primaire
+  & Propriétaire de l'organisation. Gère agents, vendors, policies,
+    credentials, workflows. Lance et annule des runs. \\
+Approver                    & Primaire
+  & Examine les demandes d'approbation, consulte les preuves (screenshots,
+    audit) et approuve ou rejette les actions risquées. \\
+\rowcolor{rowgray}
+Developer                   & Primaire
+  & Développeur technique. Consulte les ressources et peut lancer/annuler
+    des workflows (\texttt{workflow:run}, \texttt{workflow:cancel}). \\
+Auditor                     & Primaire
+  & Auditeur de conformité. Accès lecture sur agents, runs, receipts,
+    audit trail et fichiers de preuve. \\
+\rowcolor{rowgray}
+Agent IA                    & Secondaire
+  & Identité non-humaine exécutant des workflows via le worker, soumise
+    aux politiques et grants de credentials. \\
+Worker                      & Secondaire
+  & Processus BullMQ consommant les jobs, exécutant Playwright et
+    appelant l'API interne avec token HMAC scopé. \\
+\rowcolor{rowgray}
+Vendor Sandbox              & Secondaire
+  & Portail SaaS simulé (facturation, factures, downgrade) pour démos
+    et tests sans credentials réels. \\
+Système (Mailpit/S3)        & Secondaire
+  & Services d'infrastructure~: stockage objet MinIO, notifications SMTP
+    Mailpit, Redis BullMQ. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Besoins fonctionnels}
+
+\begin{longtable}{@{}p{1.2cm}p{2.2cm}p{10.2cm}@{}}
+\caption{Besoins fonctionnels de la plateforme AegisWeb}
+\label{tab:bf} \\
+\toprule
+\textbf{ID} & \textbf{Module} & \textbf{Description} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{ID} & \textbf{Module} & \textbf{Description} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+\bottomrule
+\endlastfoot
+BF01 & Auth.        & Inscription organisation, login Argon2id, JWT access
+                      token, refresh token HttpOnly (\texttt{agentpass\_refresh\_token}),
+                      refresh atomique, logout. \\
+\rowcolor{rowgray}
+BF02 & RBAC         & Cinq rôles (owner, admin, approver, auditor, developer)
+                      avec 28 permissions granulaires et isolation
+                      \texttt{organizationId}. \\
+BF03 & Agents       & CRUD agents non-humains (identifier, purpose, status,
+                      grants credentials). \\
+\rowcolor{rowgray}
+BF04 & Vendors      & Gestion fournisseurs SaaS (website, catégorie, coût
+                      mensuel estimé). \\
+BF05 & Policies     & Politiques JSON typées (allowlist, actions, spending,
+                      approval rules, bundles). \\
+\rowcolor{rowgray}
+BF06 & Vault        & Credentials chiffrés AES-256-GCM, octroi/révocation
+                      par agent, déchiffrement scopé run. \\
+BF07 & Workflows    & Définitions réutilisables (3 templates)~:
+                      invoice download, renewal check, plan downgrade. \\
+\rowcolor{rowgray}
+BF08 & Runs         & Exécutions workflow avec états (queued, running,
+                      waiting\_for\_approval, completed, failed, canceled, denied). \\
+BF09 & Policy Eng.  & Évaluation pure~: agent actif, domaine, allowlist,
+                      actions interdites, seuils, approbation, risque. \\
+\rowcolor{rowgray}
+BF10 & Browser RT   & Playwright contrôlé~: allowlist domaines, blocage
+                      réseau privé, screenshots masqués, downloads SHA-256. \\
+BF11 & Approvals    & Pause run, création \texttt{ApprovalRequest},
+                      notification email, approve/reject, reprise queue. \\
+\rowcolor{rowgray}
+BF12 & Audit        & Événements typés append-only, chaîne hash SHA-256,
+                      acteurs (user, agent, worker, system). \\
+BF13 & Files        & Métadonnées fichiers S3 (screenshots, factures PDF,
+                      traces) avec isolation org. \\
+\rowcolor{rowgray}
+BF14 & Receipts     & Artefacts finaux de confiance (timeline, décisions,
+                      approbation, preuves). \\
+BF15 & Dashboard    & Interface Next.js pour toutes les ressources +
+                      panneaux evidence (timeline, screenshots, audit drawer). \\
+\rowcolor{rowgray}
+BF16 & Sandbox      & Portail SaaS factice (login, billing, invoices,
+                      downgrade, cancel, admin users). \\
+BF17 & Queue        & BullMQ~: \texttt{workflow-runs}, \texttt{workflow-resume},
+                      \texttt{workflow-maintenance} avec jobs idempotents. \\
+\rowcolor{rowgray}
+BF18 & OpenAPI      & Documentation Swagger activable via
+                      \texttt{ENABLE\_OPENAPI=true}. \\
+\end{longtable}
+
+\section{Besoins non fonctionnels}
+
+\begin{table}[H]
+\centering
+\caption{Besoins non fonctionnels de la plateforme AegisWeb}
+\label{tab:bnf}
+\begin{tabularx}{\textwidth}{@{}p{2.5cm}X@{}}
+\toprule
+\textbf{Critère}     & \textbf{Exigence} \\
+\midrule
+\rowcolor{rowgray}
+Sécurité             & Argon2id, JWT courte durée, refresh HttpOnly atomique,
+                       AES-256-GCM vault, tokens worker HMAC, CSP nonce,
+                       rate limiting Redis, redaction secrets dans audit/receipts. \\
+Isolation tenant     & Toutes les requêtes API scopées par
+                       \texttt{organizationId}. Tests régression cross-org. \\
+\rowcolor{rowgray}
+Traçabilité          & Audit append-only avec \texttt{prevHash} et
+                       \texttt{eventHash}. Receipts immuables post-exécution. \\
+Performance          & Worker concurrency = 1 par défaut. Retry BullMQ
+                       3 tentatives, backoff exponentiel. \\
+\rowcolor{rowgray}
+Maintenabilité       & Monorepo TypeScript, libs partagées, Prisma migrations,
+                       33 specs Vitest, ESLint 9. \\
+Disponibilité        & Endpoints \texttt{/health} et \texttt{/health/ready}
+                       avec vérification Postgres/Redis. \\
+\rowcolor{rowgray}
+Déployabilité        & Docker multi-stage (api, worker, web, vendor-sandbox),
+                       profils infra et app, guide Render. \\
+UX Dashboard         & Design evidence-first, dense, monochrome, orienté
+                       confiance. Aucun secret en clair dans l'UI. \\
+\rowcolor{rowgray}
+Pilot readiness      & Score audit sécurité documenté~: 3,8/5 global
+                       (\texttt{docs/SECURITY\_AUDIT.md}). \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Diagrammes de cas d'utilisation}
+
+\subsection{Diagramme de cas d'utilisation global}
+
+\begin{figure}[H]
+\centering
+\diagramespace[7.5cm]{Diagramme CU global — acteurs Owner, Approver,
+  Developer, Auditor, Agent IA, Worker — CU~: S'authentifier, Gérer
+  agents/vendors/policies/credentials, Lancer workflow, Approuver action,
+  Consulter audit/receipts, Exécuter run navigateur}
+\caption{Diagramme de cas d'utilisation global du système AegisWeb}
+\label{fig:cu_global}
+\end{figure}
+
+\subsection{Module Authentification et autorisation}
+
+\begin{figure}[H]
+\centering
+\diagramespace[5.5cm]{Diagramme CU — Auth (S'inscrire, Se connecter,
+  Rafraîchir token, Se déconnecter, Consulter profil) + RBAC par rôle}
+\caption{Diagramme CU — Module Authentification et RBAC}
+\label{fig:cu_auth}
+\end{figure}
+
+\subsection{Module Workflow et approbation}
+
+\begin{figure}[H]
+\centering
+\diagramespace[6cm]{Diagramme CU — Workflow (Créer workflow, Lancer run,
+  [extend] Demander approbation, Approuver/Rejeter, Reprendre run,
+  Générer receipt) — acteurs Owner, Approver, Worker}
+\caption{Diagramme CU — Module Workflow et approbation}
+\label{fig:cu_workflow}
+\end{figure}
+
+\section{Descriptions textuelles des cas d'utilisation}
+
+\subsection{CU — Lancer un workflow de downgrade avec approbation}
+
+\begin{tcolorbox}[aegiscubox,
+  title=Cas d'utilisation CU-WF-01 : Lancer un downgrade SaaS avec approbation]
+\begin{tabularx}{\textwidth}{@{}p{3.2cm}X@{}}
+\textbf{Acteur principal}    & Owner ou Developer \\
+\textbf{Acteurs secondaires} & Worker, Policy Engine, Approver, Mailpit \\
+\textbf{Pré-condition}       & Agent actif, credential accordé, policy active,
+                               workflow \texttt{plan\_downgrade\_request} configuré \\
+\textbf{Post-condition}      & Run \texttt{completed} ou \texttt{denied}, receipt
+                               et audit générés \\
+\textbf{Déclencheur}         & Clic «~Run workflow~» sur le dashboard \\
+\end{tabularx}
+
+\smallskip
+\textbf{Scénario nominal :}
+\begin{enumerate}[leftmargin=1.2cm, itemsep=2pt]
+  \item L'utilisateur authentifié lance le workflow depuis le dashboard.
+  \item L'API crée un \texttt{WorkflowRun} (statut \texttt{queued}) et
+        enqueue un job \texttt{start-\{runId\}}.
+  \item Le worker consomme le job, passe le run en \texttt{running}.
+  \item Le worker ouvre un contexte Playwright isolé (allowlist vendor).
+  \item Le worker demande le déchiffrement du credential via
+        \texttt{POST /internal/vault/credentials/:id/decrypt-for-run}.
+  \item Le worker se connecte au vendor sandbox et lit les données billing.
+  \item Chaque action est enregistrée comme \texttt{ActionAttempt} avec
+        décision du policy engine.
+  \item Pour \texttt{change\_plan}~: décision \texttt{require\_approval}
+        $\rightarrow$ run \texttt{waiting\_for\_approval}.
+  \item Email envoyé à l'approver via Mailpit.
+  \item L'approver examine screenshots et approuve.
+  \item Job \texttt{resume-\{runId\}-\{approvalId\}} enqueue.
+  \item Le worker soumet le downgrade et génère receipt + audit.
+\end{enumerate}
+
+\smallskip
+\textbf{Scénarios alternatifs :}
+\begin{itemize}[leftmargin=1.2cm, itemsep=2pt]
+  \item \textbf{7a.} Décision \texttt{deny} $\rightarrow$ run
+        \texttt{denied}, pas de soumission.
+  \item \textbf{10a.} Rejet approbation $\rightarrow$ run \texttt{denied}.
+  \item \textbf{E1.} Credential révoqué $\rightarrow$ run \texttt{failed}.
+  \item \textbf{E2.} Domaine hors allowlist $\rightarrow$ action bloquée
+        par browser-runtime.
+\end{itemize}
+\end{tcolorbox}
+
+\subsection{CU — Créer et accorder un credential}
+
+\begin{tcolorbox}[aegiscubox,
+  title=Cas d'utilisation CU-VAULT-01 : Créer et accorder un credential]
+\begin{tabularx}{\textwidth}{@{}p{3.2cm}X@{}}
+\textbf{Acteur principal}    & Owner ou Admin \\
+\textbf{Acteurs secondaires} & Vault (AES-256-GCM), Audit \\
+\textbf{Pré-condition}       & Vendor existant, permission
+                               \texttt{credential:create} \\
+\textbf{Post-condition}      & Credential chiffré créé, grant agent optionnel,
+                               événement audit enregistré \\
+\textbf{Déclencheur}         & Formulaire «~New credential~» sur le dashboard \\
+\end{tabularx}
+
+\smallskip
+\textbf{Scénario nominal :}
+\begin{enumerate}[leftmargin=1.2cm, itemsep=2pt]
+  \item L'utilisateur saisit le type (username/password, API token, etc.)
+        et le payload secret.
+  \item L'API chiffre le payload via \texttt{encryptSecret} (vault lib).
+  \item Persistance Prisma~: seul le ciphertext est stocké.
+  \item L'utilisateur accorde l'accès à un agent
+        (\texttt{CredentialAgentGrant}).
+  \item Événements \texttt{credential\_created} et
+        \texttt{credential\_granted\_to\_agent} dans l'audit trail.
+  \item L'UI affiche les métadonnées sans jamais exposer le secret en clair.
+\end{enumerate}
+\end{tcolorbox}
+
+\section{Backlog produit — Phases principales}
+
+\begin{longtable}{@{}cp{5.8cm}p{2cm}cc@{}}
+\caption{Backlog produit — Phases principales du développement}
+\label{tab:backlog} \\
+\toprule
+\textbf{ID} & \textbf{Livrable}
+  & \textbf{Priorité} & \textbf{Phase} & \textbf{Statut} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{ID} & \textbf{Livrable}
+  & \textbf{Priorité} & \textbf{Phase} & \textbf{Statut} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+\bottomrule
+\endlastfoot
+P01 & Fondation API, worker boot, libs partagées     & Must Have & 0  & \coche \\
+\rowcolor{rowgray}
+P02 & Schéma Prisma + seed démo Northstar Labs        & Must Have & 1  & \coche \\
+P03 & Auth Argon2id + JWT + refresh HttpOnly          & Must Have & 4  & \coche \\
+\rowcolor{rowgray}
+P04 & RBAC 5 rôles + isolation organisation           & Must Have & 5  & \coche \\
+P05 & Audit append-only + hash chain                  & Must Have & 6  & \coche \\
+\rowcolor{rowgray}
+P06 & Files S3/MinIO + métadonnées                    & Must Have & 7  & \coche \\
+P07 & Agents, Vendors, Policies CRUD                  & Must Have & 9--12 & \coche \\
+\rowcolor{rowgray}
+P08 & Vault AES-GCM + CredentialsModule               & Must Have & 13 & \coche \\
+P09 & Workflows + WorkflowRuns + Queue BullMQ         & Must Have & 14--18 & \coche \\
+\rowcolor{rowgray}
+P10 & Worker + Browser Runtime Playwright               & Must Have & 19--20 & \coche \\
+P11 & Vendor Sandbox + Connector                        & Must Have & 21--22 & \coche \\
+\rowcolor{rowgray}
+P12 & 3 workflows SaaS (invoice, renewal, downgrade)    & Must Have & 24--26 & \coche \\
+P13 & Approvals + Notifications email                   & Must Have & 17, 28 & \coche \\
+\rowcolor{rowgray}
+P14 & Receipts + preuves finales                        & Must Have & 27 & \coche \\
+P15 & Dashboard Next.js complet                         & Must Have & —  & \coche \\
+\rowcolor{rowgray}
+P16 & OpenAPI / Swagger                                 & Should Have & 29 & \coche \\
+P17 & Tests acceptance MVP (195 tests)                  & Must Have & —  & \coche \\
+\end{longtable}
+
+\conclusionchap{Ce chapitre a permis d'identifier les 8 catégories d'acteurs
+du système AegisWeb et de formaliser 18 besoins fonctionnels et 9 critères
+non fonctionnels. Le backlog de 17 livrables majeurs, aligné sur les 30
+phases de développement, constitue la feuille de route de notre
+implémentation. Le chapitre suivant sera consacré à la conception
+architecturale et à la modélisation détaillée du système.}

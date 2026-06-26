@@ -26,6 +26,6 @@
     "types": ["node", "vitest/globals"],
     "noEmit": true
   },
-  "include": ["apps/**/*.ts", "libs/**/*.ts", "scripts/**/*.ts", "tests/**/*.ts", "vitest.config.ts", "prisma.config.ts", "eslint.config.mjs"],
+  "include": ["apps/**/*.ts", "libs/**/*.ts", "scripts/**/*.ts", "tests/**/*.ts", "vitest.config.ts", "playwright.config.ts", "prisma.config.ts", "eslint.config.mjs"],
   "exclude": ["node_modules", "dist", "coverage", "apps/web"]
 }

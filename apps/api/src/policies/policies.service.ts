@@ -9,6 +9,7 @@ import {
 } from '@prisma/client';
 import { DomainError, DomainErrorCode, PolicyStatus, PolicyType } from '@agentpass/domain';
 import { AuditService } from '../audit/audit.service.js';
+import { PageQuery, pageToSkip, paginationMeta } from '../common/pagination.js';
 import { DatabaseService } from '../database/database.service.js';
 import { ContextUser } from '../request-context/types.js';
 import { toPolicyDto } from './policies.types.js';
@@ -39,17 +40,23 @@ export class PoliciesService {
     @Inject(PolicyValidationService) private readonly validation: PolicyValidationService
   ) {}
 
-  async list(organizationId: string | undefined) {
+  async list(organizationId: string | undefined, page: PageQuery) {
     if (!organizationId) {
       throw new DomainError(DomainErrorCode.PermissionDenied, 'Organization context is required.');
     }
 
-    const policies = await this.database.client.policy.findMany({
-      where: { organizationId },
-      orderBy: [{ updatedAt: 'desc' }, { name: 'asc' }]
-    });
+    const where = { organizationId };
+    const [policies, total] = await Promise.all([
+      this.database.client.policy.findMany({
+        where,
+        orderBy: [{ updatedAt: 'desc' }, { name: 'asc' }],
+        skip: pageToSkip(page),
+        take: page.limit
+      }),
+      this.database.client.policy.count({ where })
+    ]);
 
-    return { data: policies.map(toPolicyDto) };
+    return { data: policies.map(toPolicyDto), meta: paginationMeta(total, page) };
   }
 
   async get(organizationId: string | undefined, id: string) {

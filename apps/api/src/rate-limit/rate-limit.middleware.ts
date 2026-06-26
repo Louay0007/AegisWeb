@@ -18,10 +18,14 @@ type RateProfile = {
 const buckets = new Map<string, RateLimitEntry>();
 const MAX_BUCKETS = 20_000;
 
-const defaultProfile: RateProfile = { windowMs: 60_000, max: 600 };
-const authProfile: RateProfile = { windowMs: 60_000, max: 20 };
-const internalProfile: RateProfile = { windowMs: 60_000, max: 240 };
-const fileProfile: RateProfile = { windowMs: 60_000, max: 120 };
+const HIT_SCRIPT = `
+local count = redis.call('INCR', KEYS[1])
+if count == 1 then
+  redis.call('PEXPIRE', KEYS[1], ARGV[1])
+end
+local ttl = redis.call('PTTL', KEYS[1])
+return { count, ttl }
+`;
 
 type RateLimitRequest = {
   ip?: string;
@@ -57,9 +61,9 @@ export class RateLimitMiddleware implements NestMiddleware, OnModuleDestroy {
       return;
     }
 
-    const profile = profileFor(path);
+    const profile = profileFor(path, this.config.config);
     const now = Date.now();
-    const key = rateLimitKey(clientKey(request), request.method ?? 'GET', path);
+    const key = rateLimitKey(clientKey(request, this.config.config.apiTrustedProxies), request.method ?? 'GET', path);
 
     const result = this.redis
       ? await hitRedisLimit(this.redis, key, profile, now)
@@ -68,9 +72,9 @@ export class RateLimitMiddleware implements NestMiddleware, OnModuleDestroy {
     writeHeaders(response, result.remaining, result.resetAt);
 
     if (result.count > profile.max) {
-      throw new DomainError(DomainErrorCode.PermissionDenied, 'Rate limit exceeded.', {
-        retryAfterSeconds: Math.ceil((result.resetAt - now) / 1000),
-      });
+      const retryAfterSeconds = Math.max(1, Math.ceil((result.resetAt - now) / 1000));
+      response.setHeader('retry-after', retryAfterSeconds);
+      throw new DomainError(DomainErrorCode.RateLimited, 'Rate limit exceeded.', { retryAfterSeconds });
     }
 
     next();
@@ -97,12 +101,9 @@ function hitMemoryLimit(key: string, profile: RateProfile, now: number): RateLim
 }
 
 async function hitRedisLimit(redis: Redis, key: string, profile: RateProfile, now: number): Promise<RateLimitEntry & { remaining: number }> {
-  const count = await redis.incr(key);
-  if (count === 1) {
-    await redis.pexpire(key, profile.windowMs);
-  }
-
-  const ttl = await redis.pttl(key);
+  const [countValue, ttlValue] = (await redis.eval(HIT_SCRIPT, 1, key, profile.windowMs)) as [number, number];
+  const count = Number(countValue);
+  const ttl = Number(ttlValue);
   const resetAt = now + (ttl > 0 ? ttl : profile.windowMs);
   return {
     count,
@@ -112,20 +113,20 @@ async function hitRedisLimit(redis: Redis, key: string, profile: RateProfile, no
 }
 
 function rateLimitKey(client: string, method: string, path: string): string {
-  const digest = createHash('sha256').update(`${client}:${method}:${path}`).digest('hex');
-  return `aegisweb:rate-limit:${digest}`;
+  const digest = createHash('sha256').update(`${client}:${method}:${routeGroup(path)}`).digest('hex');
+  return `aegisweb:v1:rate-limit:${digest}`;
 }
 
-function profileFor(path: string): RateProfile {
-  if (path.startsWith('/auth/')) return authProfile;
-  if (path.startsWith('/internal/')) return internalProfile;
-  if (path.startsWith('/files/') || path.startsWith('/receipts/')) return fileProfile;
-  return defaultProfile;
+function profileFor(path: string, config: ConfigService['config']): RateProfile {
+  if (path.startsWith('/auth/')) return { windowMs: config.rateLimitWindowMs, max: config.rateLimitAuthMax };
+  if (path.startsWith('/internal/')) return { windowMs: config.rateLimitWindowMs, max: config.rateLimitInternalMax };
+  if (path.startsWith('/files/') || path.startsWith('/receipts/')) return { windowMs: config.rateLimitWindowMs, max: config.rateLimitFileMax };
+  return { windowMs: config.rateLimitWindowMs, max: config.rateLimitDefaultMax };
 }
 
-function clientKey(request: RateLimitRequest): string {
+function clientKey(request: RateLimitRequest, trustedProxies: string[]): string {
   const remoteAddress = request.ip || request.socket?.remoteAddress || 'unknown';
-  if (!isTrustedProxy(remoteAddress)) {
+  if (!trustedProxies.includes(remoteAddress)) {
     return remoteAddress;
   }
 
@@ -133,12 +134,12 @@ function clientKey(request: RateLimitRequest): string {
   return forwarded?.split(',')[0]?.trim() || remoteAddress;
 }
 
-function isTrustedProxy(remoteAddress: string): boolean {
-  const trusted = (process.env.API_TRUSTED_PROXIES ?? '')
-    .split(',')
-    .map((value) => value.trim())
-    .filter(Boolean);
-  return trusted.includes(remoteAddress);
+function routeGroup(path: string): string {
+  if (path.startsWith('/auth/')) return 'auth';
+  if (path.startsWith('/internal/')) return 'internal';
+  if (path.startsWith('/files/')) return 'files';
+  if (path.startsWith('/receipts/')) return 'receipts';
+  return path.split('/').slice(0, 3).join('/') || '/';
 }
 
 function cleanupBuckets(now: number): void {

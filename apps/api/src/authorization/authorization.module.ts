@@ -11,6 +11,7 @@ import { OptionalAuthGuard } from './optional-auth.guard.js';
 import { OrganizationScopeService } from './organization-scope.service.js';
 import { PermissionsGuard } from './permissions.guard.js';
 import { RolesGuard } from './roles.guard.js';
+import { StepUpGuard } from './step-up.guard.js';
 
 @Global()
 @Module({
@@ -22,6 +23,7 @@ import { RolesGuard } from './roles.guard.js';
     OptionalAuthGuard,
     RolesGuard,
     PermissionsGuard,
+    StepUpGuard,
     InternalWorkerGuard,
     OrganizationScopeService,
     {
@@ -35,6 +37,10 @@ import { RolesGuard } from './roles.guard.js';
     {
       provide: APP_GUARD,
       useClass: PermissionsGuard
+    },
+    {
+      provide: APP_GUARD,
+      useClass: StepUpGuard
     }
   ],
   exports: [
@@ -43,6 +49,7 @@ import { RolesGuard } from './roles.guard.js';
     OptionalAuthGuard,
     RolesGuard,
     PermissionsGuard,
+    StepUpGuard,
     InternalWorkerGuard,
     OrganizationScopeService
   ]

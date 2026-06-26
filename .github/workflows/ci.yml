@@ -1,0 +1,158 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+env:
+  NODE_VERSION: '22'
+  PNPM_VERSION: '10.25.0'
+  NEXT_PUBLIC_API_URL: https://aegisweb.local
+
+jobs:
+  lint-typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:generate
+      - run: pnpm typecheck
+      - run: pnpm lint
+
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm audit --prod --audit-level moderate
+      - run: pnpm sbom
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: sbom.cdx.json
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:generate
+      - run: pnpm infra:up
+      - run: pnpm db:migrate
+      - run: pnpm test
+      - if: always()
+        run: pnpm infra:down
+
+  accessibility:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:generate
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm build:web
+      - name: Start web
+        run: pnpm --filter my-v0-project start > /tmp/aegisweb-next.log 2>&1 &
+      - name: Wait for web
+        run: |
+          for i in {1..30}; do
+            if curl -fsS http://localhost:3000 >/dev/null; then exit 0; fi
+            sleep 2
+          done
+          cat /tmp/aegisweb-next.log
+          exit 1
+      - run: WEB_BASE_URL=http://localhost:3000 pnpm qa:a11y
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: accessibility-artifacts
+          path: .qa-artifacts/**
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - uses: docker/setup-buildx-action@v3
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: Build API image
+        run: docker build --target api -t aegisweb-api:${{ github.sha }} .
+      - name: Build worker image
+        run: docker build --target worker -t aegisweb-worker:${{ github.sha }} .
+      - name: Build web image
+        run: docker build --target web --build-arg NEXT_PUBLIC_API_URL=https://aegisweb.local -t aegisweb-web:${{ github.sha }} .
+
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: docker/setup-buildx-action@v3
+      - name: Build images for scanning
+        run: |
+          docker build --target api -t aegisweb-api:${{ github.sha }} .
+          docker build --target worker -t aegisweb-worker:${{ github.sha }} .
+          docker build --target web --build-arg NEXT_PUBLIC_API_URL=https://aegisweb.local -t aegisweb-web:${{ github.sha }} .
+      - uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: aegisweb-api:${{ github.sha }}
+          severity: CRITICAL,HIGH
+          exit-code: '1'
+      - uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: aegisweb-worker:${{ github.sha }}
+          severity: CRITICAL,HIGH
+          exit-code: '1'
+      - uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: aegisweb-web:${{ github.sha }}
+          severity: CRITICAL,HIGH
+          exit-code: '1'
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+      - uses: github/codeql-action/analyze@v3

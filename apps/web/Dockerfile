@@ -1,5 +1,6 @@
 FROM node:22-slim AS deps
 WORKDIR /app
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl openssl && rm -rf /var/lib/apt/lists/*
 RUN corepack enable
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.json ./
 COPY apps/web/package.json ./apps/web/package.json
@@ -19,10 +20,13 @@ RUN pnpm --filter my-v0-project build
 
 FROM node:22-slim AS runtime
 WORKDIR /app
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl openssl && rm -rf /var/lib/apt/lists/*
 RUN corepack enable
-COPY --from=builder /app/package.json /app/pnpm-lock.yaml /app/pnpm-workspace.yaml ./
-COPY --from=builder /app/apps/web ./apps/web
-COPY --from=builder /app/node_modules ./node_modules
+RUN chown -R node:node /app
+COPY --from=builder --chown=node:node /app/package.json /app/pnpm-lock.yaml /app/pnpm-workspace.yaml ./
+COPY --from=builder --chown=node:node /app/apps/web ./apps/web
+COPY --from=builder --chown=node:node /app/node_modules ./node_modules
 ENV NODE_ENV=production
+USER node
 EXPOSE 3000
 CMD ["pnpm", "--filter", "my-v0-project", "start"]

@@ -4,11 +4,8 @@ import Link from "next/link";
 import { useRef, type ReactNode } from "react";
 import {
   ArrowLeft,
-  CheckCircle,
-  Fingerprint,
   IconoirProvider,
   Key,
-  PasswordCheck,
 } from "iconoir-react";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
@@ -19,38 +16,12 @@ gsap.registerPlugin(useGSAP);
 type AuthShellProps = {
   eyebrow: string;
   title: string;
-  description: string;
   children: ReactNode;
 };
-
-const trustSignals = [
-  "Scoped agent identities",
-  "Approval gates before risk",
-  "Credential vault boundaries",
-];
-
-const controlCards = [
-  {
-    icon: Fingerprint,
-    label: "Identity",
-    value: "Agent verified",
-  },
-  {
-    icon: PasswordCheck,
-    label: "Decision",
-    value: "Approval required",
-  },
-  {
-    icon: CheckCircle,
-    label: "Receipt",
-    value: "Evidence sealed",
-  },
-];
 
 export function AuthShell({
   eyebrow,
   title,
-  description,
   children,
 }: AuthShellProps) {
   const rootRef = useRef<HTMLElement | null>(null);
@@ -63,7 +34,7 @@ export function AuthShell({
       ).matches;
 
       if (reduceMotion) {
-        gsap.set([".auth-reveal", ".auth-card", ".auth-control-card"], {
+        gsap.set([".auth-reveal", ".auth-card"], {
           autoAlpha: 1,
           x: 0,
           y: 0,
@@ -104,29 +75,7 @@ export function AuthShell({
             clearProps: "transform,filter,visibility",
           },
           "-=0.7",
-        )
-        .fromTo(
-          ".auth-control-card",
-          { autoAlpha: 0, y: 24, scale: 0.96 },
-          {
-            autoAlpha: 1,
-            y: 0,
-            scale: 1,
-            duration: 0.65,
-            stagger: 0.075,
-            clearProps: "transform,visibility",
-          },
-          "-=0.55",
         );
-
-      gsap.to(".auth-float", {
-        y: -6,
-        duration: 4.2,
-        ease: "sine.inOut",
-        repeat: -1,
-        yoyo: true,
-        stagger: 0.25,
-      });
     },
     { scope: rootRef },
   );
@@ -195,46 +144,6 @@ export function AuthShell({
           <h1 className="auth-reveal max-w-3xl text-balance text-5xl font-semibold leading-[0.94] tracking-[-0.055em] sm:text-6xl lg:text-7xl">
             {title}
           </h1>
-          <p className="auth-reveal mt-6 max-w-xl text-pretty text-base leading-7 text-muted-foreground sm:text-lg">
-            {description}
-          </p>
-
-          <div className="auth-reveal mt-8 grid gap-3 sm:max-w-xl sm:grid-cols-3">
-            {trustSignals.map((signal) => (
-              <div
-                key={signal}
-                className="flex items-center gap-2 border border-border bg-background/70 px-3 py-2 text-sm text-muted-foreground shadow-xs backdrop-blur"
-              >
-                <CheckCircle
-                  className="size-4 shrink-0 text-foreground"
-                  aria-hidden="true"
-                />
-                <span className="text-pretty leading-5">{signal}</span>
-              </div>
-            ))}
-          </div>
-
-          <div className="auth-reveal mt-10 hidden max-w-2xl grid-cols-3 gap-3 md:grid">
-            {controlCards.map((item) => {
-              const Icon = item.icon;
-              return (
-                <div
-                  key={item.label}
-                  className="auth-control-card auth-float border border-border bg-background/80 p-4 shadow-xs backdrop-blur"
-                >
-                  <div className="mb-5 flex size-11 items-center justify-center border border-border bg-muted">
-                    <Icon className="size-5" aria-hidden="true" />
-                  </div>
-                  <p className="text-xs uppercase tracking-widest text-muted-foreground">
-                    {item.label}
-                  </p>
-                  <p className="mt-2 text-sm font-medium text-foreground">
-                    {item.value}
-                  </p>
-                </div>
-              );
-            })}
-          </div>
         </div>
 
         <div className="auth-card relative min-w-0">

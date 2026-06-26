@@ -13,6 +13,7 @@ import {
 } from '@prisma/client';
 import { DomainError, DomainErrorCode, WorkflowStatus, WorkflowTemplate } from '@agentpass/domain';
 import { AuditService } from '../audit/audit.service.js';
+import { PageQuery, pageToSkip, paginationMeta } from '../common/pagination.js';
 import { DatabaseService } from '../database/database.service.js';
 import { WorkflowQueueService } from '../queue/workflow-queue.service.js';
 import { ContextUser } from '../request-context/types.js';
@@ -41,17 +42,23 @@ export class WorkflowsService {
     @Inject(WorkflowQueueService) private readonly queue: WorkflowQueueService
   ) {}
 
-  async list(organizationId: string | undefined) {
+  async list(organizationId: string | undefined, page: PageQuery) {
     if (!organizationId) {
       throw new DomainError(DomainErrorCode.PermissionDenied, 'Organization context is required.');
     }
 
-    const workflows = await this.database.client.workflow.findMany({
-      where: { organizationId },
-      orderBy: [{ createdAt: 'asc' }, { name: 'asc' }]
-    });
+    const where = { organizationId };
+    const [workflows, total] = await Promise.all([
+      this.database.client.workflow.findMany({
+        where,
+        orderBy: [{ createdAt: 'asc' }, { name: 'asc' }],
+        skip: pageToSkip(page),
+        take: page.limit
+      }),
+      this.database.client.workflow.count({ where })
+    ]);
 
-    return { data: workflows.map(toWorkflowDto) };
+    return { data: workflows.map(toWorkflowDto), meta: paginationMeta(total, page) };
   }
 
   async get(organizationId: string | undefined, id: string) {

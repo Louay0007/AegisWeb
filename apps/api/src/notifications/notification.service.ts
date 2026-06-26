@@ -107,14 +107,19 @@ export class NotificationService {
       },
       select: {
         email: true,
-        name: true
+        name: true,
+        notificationPreference: {
+          select: { approvalRequests: true }
+        }
       },
       orderBy: [{ role: 'asc' }, { email: 'asc' }]
     });
 
-    return users.map((user) => ({
-      email: user.email,
-      name: user.name
-    }));
+    return users
+      .filter((user) => user.notificationPreference?.approvalRequests !== false)
+      .map((user) => ({
+        email: user.email,
+        name: user.name
+      }));
   }
 }

@@ -11,6 +11,7 @@ export type UserDto = {
   updatedAt: string;
   lastLoginAt: string | null;
   disabledAt: string | null;
+  emailVerifiedAt: string | null;
 };
 
 export function toUserDto(user: User): UserDto {
@@ -24,6 +25,7 @@ export function toUserDto(user: User): UserDto {
     createdAt: user.createdAt.toISOString(),
     updatedAt: user.updatedAt.toISOString(),
     lastLoginAt: user.lastLoginAt?.toISOString() ?? null,
-    disabledAt: user.disabledAt?.toISOString() ?? null
+    disabledAt: user.disabledAt?.toISOString() ?? null,
+    emailVerifiedAt: user.emailVerifiedAt?.toISOString() ?? null
   };
 }

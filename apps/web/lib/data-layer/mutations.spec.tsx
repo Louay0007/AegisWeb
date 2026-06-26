@@ -8,7 +8,7 @@ import { queryKeys } from "@/lib/data-layer/query-keys";
 import { useApproveRequest, useRejectRequest } from "@/lib/data-layer/mutations";
 
 vi.mock("@/lib/auth/auth-session", () => ({
-  useAuthSession: () => ({ state: { status: "authenticated", session: { accessToken: "t", user: { role: "OWNER" } } } }),
+  useAuthSession: () => ({ state: { status: "authenticated", session: { user: { role: "OWNER" } } } }),
 }));
 
 function makeWrapper(queryClient: QueryClient) {

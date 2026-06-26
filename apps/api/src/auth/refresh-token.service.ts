@@ -1,7 +1,8 @@
-import { createHash, randomBytes } from 'node:crypto';
+import { createHmac, randomBytes } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import { RefreshToken } from '@prisma/client';
 import { DomainError, DomainErrorCode } from '@agentpass/domain';
+import { ConfigService } from '../config/config.service.js';
 import { DatabaseService } from '../database/database.service.js';
 
 const REFRESH_TOKEN_BYTES = 48;
@@ -9,7 +10,10 @@ const REFRESH_TOKEN_TTL_DAYS = 30;
 
 @Injectable()
 export class RefreshTokenService {
-  constructor(@Inject(DatabaseService) private readonly database: DatabaseService) {}
+  constructor(
+    @Inject(DatabaseService) private readonly database: DatabaseService,
+    @Inject(ConfigService) private readonly config: ConfigService
+  ) {}
 
   get ttlSeconds(): number {
     return REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60;
@@ -77,7 +81,41 @@ export class RefreshTokenService {
     });
   }
 
+  async revokeAllForUser(userId: string): Promise<void> {
+    await this.database.client.refreshToken.updateMany({
+      where: {
+        userId,
+        revokedAt: null
+      },
+      data: {
+        revokedAt: new Date()
+      }
+    });
+  }
+
+  async listActiveForUser(userId: string): Promise<RefreshToken[]> {
+    return this.database.client.refreshToken.findMany({
+      where: {
+        userId,
+        revokedAt: null,
+        expiresAt: { gt: new Date() }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+  }
+
+  async revokeForUser(userId: string, id: string): Promise<void> {
+    await this.database.client.refreshToken.updateMany({
+      where: {
+        id,
+        userId,
+        revokedAt: null
+      },
+      data: { revokedAt: new Date() }
+    });
+  }
+
   hash(token: string): string {
-    return createHash('sha256').update(token).digest('hex');
+    return createHmac('sha256', this.config.config.jwtRefreshSecret).update(token).digest('hex');
   }
 }

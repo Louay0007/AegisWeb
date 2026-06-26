@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, Eye, Plus } from "iconoir-react";
 
 import { PageHeader } from "@/components/app-shell/page-header";
 import { Button } from "@/components/ui/button";
 import { DataTable, type DataTableColumn } from "@/components/data/data-table";
+import { PaginationControls } from "@/components/data/pagination-controls";
 import { StatePanel } from "@/components/data/state-panel";
 import { SearchInput } from "@/components/data/search-input";
 import { PolicyDecisionBadge } from "@/components/display/policy-decision-badge";
@@ -35,7 +36,6 @@ import { errorMessage } from "@/lib/api/api-errors";
 import {
   useAgents,
   useAgent,
-  useApprovals,
   useApproval,
   useAuditEvents,
   useApproveRequest,
@@ -56,7 +56,6 @@ import {
   usePolicy,
   usePauseAgent,
   useReceipt,
-  useReceipts,
   useResumeAgent,
   useRevokeAgent,
   useRevokeCredential,
@@ -74,17 +73,19 @@ import {
   useWorkflowRuns,
   useWorkflows,
   useWorkflow,
+  usePaginatedApprovals,
+  usePaginatedAuditEvents,
+  usePaginatedPolicies,
+  usePaginatedReceipts,
+  usePaginatedWorkflowRuns,
   pickItems,
   type ResourceHookResult,
 } from "@/lib/data-layer";
 import { downloadEndpoint } from "@/lib/data-layer/download";
 import {
   agents,
-  approvals,
-  auditEvents,
   credentials,
   policies,
-  receipts,
   vendors,
   workflows,
   workflowRuns,
@@ -151,12 +152,6 @@ function TextLink({
       <ArrowRight className="size-3.5" strokeWidth={1.8} />
     </Link>
   );
-}
-
-function resourceError(resource: ResourceHookResult<unknown>) {
-  return resource.state.status === "error"
-    ? errorMessage(resource.state.error)
-    : undefined;
 }
 
 function resourceSource<T>(resource: ResourceHookResult<T>) {
@@ -234,6 +229,33 @@ function useSettingsPermissions() {
   };
 }
 
+function useSyncedPage() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const pageFromUrl = Math.max(1, Number.parseInt(searchParams.get("page") ?? "1", 10) || 1);
+  const [page, setPageState] = useState(pageFromUrl);
+
+  useEffect(() => {
+    setPageState((current) => (current === pageFromUrl ? current : pageFromUrl));
+  }, [pageFromUrl]);
+
+  const setPage = (nextPage: number) => {
+    const normalized = Math.max(1, nextPage);
+    const params = new URLSearchParams(searchParams.toString());
+    if (normalized === 1) {
+      params.delete("page");
+    } else {
+      params.set("page", String(normalized));
+    }
+    const query = params.toString();
+    setPageState(normalized);
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  };
+
+  return [page, setPage] as const;
+}
+
 function sourceIsApi(source?: "api" | "fixture") {
   return source === "api";
 }
@@ -269,6 +291,8 @@ function enhanceAgents(
 // -- Page components -------------------------------------------------------
 
 export function AgentsPage() {
+  const [page, setPage] = useSyncedPage();
+  const limit = 20;
   const agentsResource = useAgents();
   const policiesResource = usePolicies();
   const credentialsResource = useCredentials();
@@ -286,6 +310,10 @@ export function AgentsPage() {
     pickItems(credentialsResource, credentials),
     pickItems(runsResource, workflowRuns),
   );
+  const total = agentItems.length;
+  const totalPages = Math.max(1, Math.ceil(total / limit));
+  const start = (page - 1) * limit;
+  const displayItems = agentItems.slice(start, start + limit);
   const apiMode = sourceIsApi(
     agentsResource.state.status === "success" ||
       agentsResource.state.status === "empty"
@@ -312,7 +340,17 @@ export function AgentsPage() {
             : undefined
         }
       />
-      <AgentsManagementPage items={agentItems} actions={actions} />
+      <AgentsManagementPage items={displayItems} actions={actions} />
+      {total > limit ? (
+        <PaginationControls
+          page={page}
+          pageCount={totalPages}
+          total={total}
+          onPrevious={page > 1 ? () => setPage(page - 1) : undefined}
+          onNext={page < totalPages ? () => setPage(page + 1) : undefined}
+          onPageChange={setPage}
+        />
+      ) : null}
     </div>
   );
 }
@@ -407,6 +445,8 @@ export function AgentDetailPage({ id }: { id: string }) {
 }
 
 export function VendorsPage() {
+  const [page, setPage] = useSyncedPage();
+  const limit = 20;
   const vendorsResource = useVendors();
   const permissions = useManagementPermissions();
   const createVendor = useCreateVendor({
@@ -416,6 +456,10 @@ export function VendorsPage() {
     messages: { success: "Vendor updated." },
   });
   const vendorItems = pickItems(vendorsResource, vendors);
+  const total = vendorItems.length;
+  const totalPages = Math.max(1, Math.ceil(total / limit));
+  const start = (page - 1) * limit;
+  const displayItems = vendorItems.slice(start, start + limit);
   const actions = {
     apiMode: sourceIsApi(
       vendorsResource.state.status === "success" ||
@@ -441,7 +485,17 @@ export function VendorsPage() {
             : undefined
         }
       />
-      <VendorsManagementPage items={vendorItems} actions={actions} />
+      <VendorsManagementPage items={displayItems} actions={actions} />
+      {total > limit ? (
+        <PaginationControls
+          page={page}
+          pageCount={totalPages}
+          total={total}
+          onPrevious={page > 1 ? () => setPage(page - 1) : undefined}
+          onNext={page < totalPages ? () => setPage(page + 1) : undefined}
+          onPageChange={setPage}
+        />
+      ) : null}
     </div>
   );
 }
@@ -522,6 +576,8 @@ export function VendorDetailPage({ id }: { id: string }) {
 }
 
 export function CredentialsPage() {
+  const [page, setPage] = useSyncedPage();
+  const limit = 20;
   const agentsResource = useAgents();
   const vendorsResource = useVendors();
   const permissions = useManagementPermissions();
@@ -538,6 +594,10 @@ export function CredentialsPage() {
   const vendorItems = pickItems(vendorsResource, vendors);
   const credentialsResource = useCredentials();
   const credentialItems = pickItems(credentialsResource, credentials);
+  const total = credentialItems.length;
+  const totalPages = Math.max(1, Math.ceil(total / limit));
+  const start = (page - 1) * limit;
+  const displayItems = credentialItems.slice(start, start + limit);
   const actions = {
     apiMode: sourceIsApi(
       credentialsResource.state.status === "success" ||
@@ -570,7 +630,7 @@ export function CredentialsPage() {
         }
       />
       <CredentialsManagementPage
-        items={credentialItems}
+        items={displayItems}
         lookupItems={{
           agents: agentItems,
           vendors: vendorItems,
@@ -578,6 +638,16 @@ export function CredentialsPage() {
         }}
         actions={actions}
       />
+      {total > limit ? (
+        <PaginationControls
+          page={page}
+          pageCount={totalPages}
+          total={total}
+          onPrevious={page > 1 ? () => setPage(page - 1) : undefined}
+          onNext={page < totalPages ? () => setPage(page + 1) : undefined}
+          onPageChange={setPage}
+        />
+      ) : null}
     </div>
   );
 }
@@ -667,16 +737,17 @@ export function CredentialDetailPage({ id }: { id: string }) {
 }
 
 export function PoliciesPage() {
+  const [page, setPage] = useSyncedPage();
   const [query, setQuery] = useState("");
+  const limit = 20;
   const agentsResource = useAgents();
   const permissions = useManagementPermissions();
   const createPolicy = useCreatePolicy({
     messages: { success: "Policy created." },
   });
   const agentItems = pickItems(agentsResource, agents);
-  const policiesResource = usePolicies();
-  const policyItems = pickItems(policiesResource, policies);
-  const filteredPolicies = filterRows(policyItems, query, (policy) =>
+  const paginated = usePaginatedPolicies(page, limit);
+  const filteredPolicies = filterRows(paginated.items, query, (policy) =>
     [
       policy.name,
       policy.agent,
@@ -689,12 +760,7 @@ export function PoliciesPage() {
     ].join(" "),
   );
   const actions = {
-    apiMode: sourceIsApi(
-      policiesResource.state.status === "success" ||
-        policiesResource.state.status === "empty"
-        ? policiesResource.state.source
-        : undefined,
-    ),
+    apiMode: false,
     permissions: permissions.policies,
     onCreatePolicy: async (values: Record<string, string>) => {
       await createPolicy.mutateAsync(values);
@@ -743,14 +809,6 @@ export function PoliciesPage() {
           <PolicyCreateDialog agentItems={agentItems} actions={actions} />
         }
       />
-      <ResourceNotice
-        source={
-          policiesResource.state.status === "success" ||
-          policiesResource.state.status === "empty"
-            ? policiesResource.state.source
-            : undefined
-        }
-      />
       <Toolbar
         placeholder="Search policies"
         query={query}
@@ -760,9 +818,12 @@ export function PoliciesPage() {
       <DataTable
         rows={filteredPolicies}
         columns={columns}
-        loading={policiesResource.state.status === "loading"}
-        error={resourceError(policiesResource)}
-        onRetry={() => void policiesResource.reload()}
+        loading={paginated.isLoading}
+        error={paginated.error}
+        onRetry={() => void paginated.reload()}
+        pagination={paginated.meta}
+        updatedAt={paginated.updatedAt}
+        onPageChange={(p) => { setPage(p); setQuery(""); }}
       />
     </div>
   );
@@ -837,6 +898,8 @@ export function PolicyDetailPage({ id }: { id: string }) {
 }
 
 export function WorkflowsPage() {
+  const [page, setPage] = useSyncedPage();
+  const limit = 20;
   const agentsResource = useAgents();
   const vendorsResource = useVendors();
   const permissions = useManagementPermissions();
@@ -852,6 +915,10 @@ export function WorkflowsPage() {
   const credentialItems = pickItems(credentialsResource, credentials);
   const workflowsResource = useWorkflows();
   const workflowItems = pickItems(workflowsResource, workflows);
+  const total = workflowItems.length;
+  const totalPages = Math.max(1, Math.ceil(total / limit));
+  const start = (page - 1) * limit;
+  const displayItems = workflowItems.slice(start, start + limit);
   const actions = {
     apiMode: sourceIsApi(
       workflowsResource.state.status === "success" ||
@@ -881,7 +948,7 @@ export function WorkflowsPage() {
         }
       />
       <WorkflowsManagementPage
-        items={workflowItems}
+        items={displayItems}
         lookupItems={{
           agents: agentItems,
           vendors: vendorItems,
@@ -889,6 +956,16 @@ export function WorkflowsPage() {
         }}
         actions={actions}
       />
+      {total > limit ? (
+        <PaginationControls
+          page={page}
+          pageCount={totalPages}
+          total={total}
+          onPrevious={page > 1 ? () => setPage(page - 1) : undefined}
+          onNext={page < totalPages ? () => setPage(page + 1) : undefined}
+          onPageChange={setPage}
+        />
+      ) : null}
     </div>
   );
 }
@@ -976,10 +1053,11 @@ export function WorkflowDetailPage({ id }: { id: string }) {
 }
 
 export function RunsPage() {
+  const [page, setPage] = useSyncedPage();
   const [query, setQuery] = useState("");
-  const runsResource = useWorkflowRuns();
-  const runItems = pickItems(runsResource, workflowRuns);
-  const filteredRuns = filterRows(runItems, query, (run) =>
+  const limit = 20;
+  const paginated = usePaginatedWorkflowRuns(page, limit);
+  const filteredRuns = filterRows(paginated.items, query, (run) =>
     [
       run.workflow,
       run.status,
@@ -1028,14 +1106,6 @@ export function RunsPage() {
         description="Observe live and historical workflow execution with policy and evidence context."
         actions={<StartWorkflowFlow />}
       />
-      <ResourceNotice
-        source={
-          runsResource.state.status === "success" ||
-          runsResource.state.status === "empty"
-            ? runsResource.state.source
-            : undefined
-        }
-      />
       <Toolbar
         placeholder="Search runs"
         query={query}
@@ -1045,9 +1115,12 @@ export function RunsPage() {
       <DataTable
         rows={filteredRuns}
         columns={columns}
-        loading={runsResource.state.status === "loading"}
-        error={resourceError(runsResource)}
-        onRetry={() => void runsResource.reload()}
+        loading={paginated.isLoading}
+        error={paginated.error}
+        onRetry={() => void paginated.reload()}
+        pagination={paginated.meta}
+        updatedAt={paginated.updatedAt}
+        onPageChange={(p) => { setPage(p); setQuery(""); }}
       />
     </div>
   );
@@ -1128,10 +1201,11 @@ export function RunDetailPage({ id }: { id: string }) {
 }
 
 export function ApprovalsPage() {
+  const [page, setPage] = useSyncedPage();
   const [query, setQuery] = useState("");
-  const approvalsResource = useApprovals();
-  const approvalItems = pickItems(approvalsResource, approvals);
-  const filteredApprovals = filterRows(approvalItems, query, (approval) =>
+  const limit = 20;
+  const paginated = usePaginatedApprovals(page, limit);
+  const filteredApprovals = filterRows(paginated.items, query, (approval) =>
     [
       approval.action,
       approval.status,
@@ -1187,14 +1261,6 @@ export function ApprovalsPage() {
         title="Approvals"
         description="Decide risky agent actions with policy context and browser evidence."
       />
-      <ResourceNotice
-        source={
-          approvalsResource.state.status === "success" ||
-          approvalsResource.state.status === "empty"
-            ? approvalsResource.state.source
-            : undefined
-        }
-      />
       <Toolbar
         placeholder="Search approvals"
         query={query}
@@ -1204,9 +1270,12 @@ export function ApprovalsPage() {
       <DataTable
         rows={filteredApprovals}
         columns={columns}
-        loading={approvalsResource.state.status === "loading"}
-        error={resourceError(approvalsResource)}
-        onRetry={() => void approvalsResource.reload()}
+        loading={paginated.isLoading}
+        error={paginated.error}
+        onRetry={() => void paginated.reload()}
+        pagination={paginated.meta}
+        updatedAt={paginated.updatedAt}
+        onPageChange={(p) => { setPage(p); setQuery(""); }}
       />
     </div>
   );
@@ -1279,10 +1348,11 @@ export function ApprovalDetailPage({ id }: { id: string }) {
 }
 
 export function ReceiptsPage() {
+  const [page, setPage] = useSyncedPage();
   const [query, setQuery] = useState("");
-  const receiptsResource = useReceipts();
-  const receiptItems = pickItems(receiptsResource, receipts);
-  const filteredReceipts = filterRows(receiptItems, query, (receipt) =>
+  const limit = 20;
+  const paginated = usePaginatedReceipts(page, limit);
+  const filteredReceipts = filterRows(paginated.items, query, (receipt) =>
     [
       receipt.summary,
       receipt.status,
@@ -1336,14 +1406,6 @@ export function ReceiptsPage() {
         title="Receipts"
         description="Proof of what happened, who approved it, which policy matched, and what evidence was preserved."
       />
-      <ResourceNotice
-        source={
-          receiptsResource.state.status === "success" ||
-          receiptsResource.state.status === "empty"
-            ? receiptsResource.state.source
-            : undefined
-        }
-      />
       <Toolbar
         placeholder="Search receipts"
         query={query}
@@ -1353,9 +1415,12 @@ export function ReceiptsPage() {
       <DataTable
         rows={filteredReceipts}
         columns={columns}
-        loading={receiptsResource.state.status === "loading"}
-        error={resourceError(receiptsResource)}
-        onRetry={() => void receiptsResource.reload()}
+        loading={paginated.isLoading}
+        error={paginated.error}
+        onRetry={() => void paginated.reload()}
+        pagination={paginated.meta}
+        updatedAt={paginated.updatedAt}
+        onPageChange={(p) => { setPage(p); setQuery(""); }}
       />
     </div>
   );
@@ -1364,6 +1429,11 @@ export function ReceiptsPage() {
 export function ReceiptDetailPage({ id }: { id: string }) {
   const receiptResource = useReceipt(id);
   const receiptBase = resolveDetailRecord(receiptResource, id);
+  const auditResource = useAuditEvents(
+    receiptBase
+      ? `/audit-events?workflowRunId=${encodeURIComponent(receiptBase.workflowRun)}`
+      : "/audit-events",
+  );
 
   if (receiptResource.state.status === "loading") {
     return (
@@ -1396,9 +1466,6 @@ export function ReceiptDetailPage({ id }: { id: string }) {
     );
   }
 
-  const auditResource = useAuditEvents(
-    `/audit-events?workflowRunId=${encodeURIComponent(receiptBase.workflowRun)}`,
-  );
   const receiptAudit =
     (auditResource.state.status === "success" ||
       auditResource.state.status === "empty") &&
@@ -1444,10 +1511,24 @@ export function ReceiptDetailPage({ id }: { id: string }) {
 }
 
 export function AuditPage() {
+  const [page, setPage] = useSyncedPage();
+  const limit = 50;
   const [query, setQuery] = useState("");
-  const auditResource = useAuditEvents();
-  const auditItems = pickItems(auditResource, auditEvents);
-  const filteredAudit = filterRows(auditItems, query, (event) =>
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setDebouncedQuery(query);
+    }, 300);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [query]);
+
+  const paginated = usePaginatedAuditEvents(page, limit);
+  const filteredAudit = filterRows(paginated.items, debouncedQuery, (event) =>
     [
       event.timestamp,
       event.eventType,
@@ -1508,14 +1589,6 @@ export function AuditPage() {
         title="Audit"
         description="Searchable technical event history with secret-safe payload inspection."
       />
-      <ResourceNotice
-        source={
-          auditResource.state.status === "success" ||
-          auditResource.state.status === "empty"
-            ? auditResource.state.source
-            : undefined
-        }
-      />
       <Toolbar
         placeholder="Search audit events"
         query={query}
@@ -1525,9 +1598,12 @@ export function AuditPage() {
       <DataTable
         rows={filteredAudit}
         columns={columns}
-        loading={auditResource.state.status === "loading"}
-        error={resourceError(auditResource)}
-        onRetry={() => void auditResource.reload()}
+        loading={paginated.isLoading}
+        error={paginated.error}
+        onRetry={() => void paginated.reload()}
+        pagination={paginated.meta}
+        updatedAt={paginated.updatedAt}
+        onPageChange={(p) => { setPage(p); setQuery(""); setDebouncedQuery(""); }}
       />
     </div>
   );

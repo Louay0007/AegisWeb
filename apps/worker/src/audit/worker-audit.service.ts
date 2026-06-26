@@ -1,7 +1,6 @@
-import { createHash } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
-import { AuditActorType, AuditEventType, Prisma } from '@prisma/client';
-import { WorkerDatabaseService } from '../database/worker-database.service.js';
+import { AuditEventType, Prisma } from '@prisma/client';
+import { InternalApiClient } from '../internal-api/internal-api-client.service.js';
 
 export type WorkerAuditInput = {
   organizationId: string;
@@ -13,40 +12,19 @@ export type WorkerAuditInput = {
 
 @Injectable()
 export class WorkerAuditService {
-  constructor(@Inject(WorkerDatabaseService) private readonly database: WorkerDatabaseService) {}
+  constructor(@Inject(InternalApiClient) private readonly internalApi: InternalApiClient) {}
 
   async record(input: WorkerAuditInput): Promise<void> {
-    const previous = await this.database.client.auditEvent.findFirst({
-      where: { organizationId: input.organizationId },
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }]
-    });
-    const prevHash = previous?.eventHash ?? null;
-    const eventHash = createHash('sha256')
-      .update(
-        JSON.stringify({
-          organizationId: input.organizationId,
-          workflowRunId: input.workflowRunId ?? null,
-          agentId: input.agentId ?? null,
-          actorType: AuditActorType.WORKER,
-          actorId: 'worker',
-          eventType: input.eventType,
-          eventDataJson: input.eventDataJson,
-          prevHash
-        })
-      )
-      .digest('hex');
+    if (!input.workflowRunId) {
+      throw new Error('Worker audit events require a workflow run ID.');
+    }
 
-    await this.database.client.auditEvent.create({
-      data: {
-        organizationId: input.organizationId,
-        workflowRunId: input.workflowRunId,
-        agentId: input.agentId,
-        actorType: AuditActorType.WORKER,
-        actorId: 'worker',
-        eventType: input.eventType,
-        eventDataJson: input.eventDataJson,
-        prevHash,
-        eventHash
+    await this.internalApi.recordRunEvent(input.workflowRunId, {
+      organizationId: input.organizationId,
+      eventType: input.eventType,
+      eventDataJson: {
+        ...(input.eventDataJson as Record<string, unknown>),
+        agentId: input.agentId
       }
     });
   }

@@ -1,6 +1,6 @@
 import { queryOptions } from "@tanstack/react-query";
 
-import { apiGet, apiPost, apiPatch, apiDelete, apiDownload } from "@/lib/api/api-client";
+import { apiGet, apiGetPaginated, apiPost, apiPatch, apiDelete, apiDownload } from "@/lib/api/api-client";
 import {
   mapAgent,
   mapApproval,
@@ -25,6 +25,7 @@ import {
   type WorkflowRunDetailDto,
   type WorkflowRunSummaryDto,
 } from "@/lib/api/mappers";
+import type { PaginatedResult } from "@/lib/api/pagination";
 import type { AgentFixture, ApprovalFixture, AuditEventFixture, CredentialFixture, PolicyFixture, ReceiptFixture, VendorFixture, WorkflowFixture, WorkflowRunFixture } from "@/lib/fixtures/dashboard";
 import { queryKeys, type QueryKeys } from "./query-keys";
 import { gcTime, staleTime } from "./query-client";
@@ -43,6 +44,15 @@ export const resourceQueries = {
         staleTime: staleTime.list,
         gcTime: gcTime.default,
       }),
+    paginatedList: (page: number, limit: number = 20) =>
+      queryOptions<PaginatedResult<AgentFixture>>({
+        queryKey: queryKeys.agents.paginatedList(page, limit),
+        queryFn: async () => {
+          const result = await apiGetPaginated<AgentDto>(`/agents?page=${page}&limit=${limit}`);
+          return { data: result.data.map(mapAgent), meta: result.meta };
+        },
+        staleTime: staleTime.list,
+      }),
     detail: (id: string) =>
       queryOptions<AgentFixture>({
         queryKey: queryKeys.agents.detail(id),
@@ -55,6 +65,15 @@ export const resourceQueries = {
       queryOptions<VendorFixture[]>({
         queryKey: queryKeys.vendors.list(),
         queryFn: async () => (await apiGet<VendorDto[]>("/vendors")).map(mapVendor),
+        staleTime: staleTime.list,
+      }),
+    paginatedList: (page: number, limit: number = 20) =>
+      queryOptions<PaginatedResult<VendorFixture>>({
+        queryKey: queryKeys.vendors.paginatedList(page, limit),
+        queryFn: async () => {
+          const result = await apiGetPaginated<VendorDto>(`/vendors?page=${page}&limit=${limit}`);
+          return { data: result.data.map(mapVendor), meta: result.meta };
+        },
         staleTime: staleTime.list,
       }),
     detail: (id: string) =>
@@ -78,6 +97,19 @@ export const resourceQueries = {
         },
         // Credentials combine three resources. They don't need sub-second
         // freshness, but invalidate whenever any of the upstream keys move.
+        staleTime: staleTime.list,
+      }),
+    paginatedList: (page: number, limit: number = 20) =>
+      queryOptions<PaginatedResult<CredentialFixture>>({
+        queryKey: queryKeys.credentials.paginatedList(page, limit),
+        queryFn: async () => {
+          const [result, vendors, agents] = await Promise.all([
+            apiGetPaginated<CredentialDto>(`/credentials?page=${page}&limit=${limit}`),
+            apiGet<VendorDto[]>("/vendors").then((items) => items.map(mapVendor)),
+            apiGet<AgentDto[]>("/agents").then((items) => items.map(mapAgent)),
+          ]);
+          return { data: result.data.map((c) => mapCredential(c, vendors, agents)), meta: result.meta };
+        },
         staleTime: staleTime.list,
       }),
     detail: (id: string) =>
@@ -104,6 +136,18 @@ export const resourceQueries = {
             apiGet<AgentDto[]>("/agents").then((items) => items.map(mapAgent)),
           ]);
           return policies.map((policy) => mapPolicy(policy, agents));
+        },
+        staleTime: staleTime.list,
+      }),
+    paginatedList: (page: number, limit: number = 20) =>
+      queryOptions<PaginatedResult<PolicyFixture>>({
+        queryKey: queryKeys.policies.paginatedList(page, limit),
+        queryFn: async () => {
+          const [result, agents] = await Promise.all([
+            apiGetPaginated<PolicyDto>(`/policies?page=${page}&limit=${limit}`),
+            apiGet<AgentDto[]>("/agents").then((items) => items.map(mapAgent)),
+          ]);
+          return { data: result.data.map((p) => mapPolicy(p, agents)), meta: result.meta };
         },
         staleTime: staleTime.list,
       }),
@@ -134,6 +178,19 @@ export const resourceQueries = {
         },
         staleTime: staleTime.list,
       }),
+    paginatedList: (page: number, limit: number = 20) =>
+      queryOptions<PaginatedResult<WorkflowFixture>>({
+        queryKey: queryKeys.workflows.paginatedList(page, limit),
+        queryFn: async () => {
+          const [result, agents, vendors] = await Promise.all([
+            apiGetPaginated<WorkflowDto>(`/workflows?page=${page}&limit=${limit}`),
+            apiGet<AgentDto[]>("/agents").then((items) => items.map(mapAgent)),
+            apiGet<VendorDto[]>("/vendors").then((items) => items.map(mapVendor)),
+          ]);
+          return { data: result.data.map((w) => mapWorkflow(w, agents, vendors)), meta: result.meta };
+        },
+        staleTime: staleTime.list,
+      }),
     detail: (id: string) =>
       queryOptions<WorkflowFixture>({
         queryKey: queryKeys.workflows.detail(id),
@@ -157,6 +214,15 @@ export const resourceQueries = {
         // background refetch doesn't tear the UI.
         staleTime: staleTime.nearRealtime,
         refetchInterval: 30_000,
+      }),
+    paginatedList: (page: number, limit: number = 20) =>
+      queryOptions<PaginatedResult<WorkflowRunFixture>>({
+        queryKey: queryKeys.workflowRuns.paginatedList(page, limit),
+        queryFn: async () => {
+          const result = await apiGetPaginated<WorkflowRunSummaryDto>(`/workflow-runs?page=${page}&limit=${limit}`);
+          return { data: result.data.map(mapWorkflowRun), meta: result.meta };
+        },
+        staleTime: staleTime.list,
       }),
     detail: (id: string) =>
       queryOptions<WorkflowRunFixture>({
@@ -190,6 +256,18 @@ export const resourceQueries = {
         staleTime: staleTime.realtime,
         refetchInterval: 30_000,
       }),
+    paginatedList: (page: number, limit: number = 20) =>
+      queryOptions<PaginatedResult<ApprovalFixture>>({
+        queryKey: queryKeys.approvals.paginatedList(page, limit),
+        queryFn: async () => {
+          const [result, runs] = await Promise.all([
+            apiGetPaginated<ApprovalRequestDto>(`/approvals?page=${page}&limit=${limit}`),
+            apiGet<WorkflowRunSummaryDto[]>("/workflow-runs").then((items) => items.map(mapWorkflowRun)),
+          ]);
+          return { data: result.data.map((a) => mapApproval(a, runs)), meta: result.meta };
+        },
+        staleTime: staleTime.list,
+      }),
     detail: (id: string) =>
       queryOptions<ApprovalFixture>({
         queryKey: queryKeys.approvals.detail(id),
@@ -208,6 +286,15 @@ export const resourceQueries = {
         queryFn: async () => (await apiGet<ReceiptListDto[]>("/receipts")).map(mapReceipt),
         staleTime: staleTime.list,
       }),
+    paginatedList: (page: number, limit: number = 20) =>
+      queryOptions<PaginatedResult<ReceiptFixture>>({
+        queryKey: queryKeys.receipts.paginatedList(page, limit),
+        queryFn: async () => {
+          const result = await apiGetPaginated<ReceiptListDto>(`/receipts?page=${page}&limit=${limit}`);
+          return { data: result.data.map(mapReceipt), meta: result.meta };
+        },
+        staleTime: staleTime.list,
+      }),
     detail: (id: string) =>
       queryOptions<ReceiptFixture>({
         queryKey: queryKeys.receipts.detail(id),
@@ -222,6 +309,24 @@ export const resourceQueries = {
         queryFn: async () => (await apiGet<AuditEventDto[]>(path)).map(mapAuditEvent),
         staleTime: staleTime.list,
       }),
+    paginatedList: (page: number, limit: number = 50) =>
+      queryOptions<PaginatedResult<AuditEventFixture>>({
+        queryKey: queryKeys.audit.paginatedList(page, limit),
+        queryFn: async () => {
+          const offset = (page - 1) * limit;
+          const result = await apiGetPaginated<AuditEventDto>(`/audit-events?limit=${limit}&offset=${offset}`);
+          return {
+            data: result.data.map(mapAuditEvent),
+            meta: {
+              total: result.meta.total,
+              page,
+              limit,
+              totalPages: Math.max(1, Math.ceil(result.meta.total / limit)),
+            },
+          };
+        },
+        staleTime: staleTime.list,
+      }),
   },
   organization: {
     detail: () =>
@@ -234,6 +339,15 @@ export const resourceQueries = {
       queryOptions<UserDto[]>({
         queryKey: queryKeys.users.list(),
         queryFn: () => apiGet<UserDto[]>("/users"),
+        staleTime: staleTime.list,
+      }),
+    paginatedUsers: (page: number, limit: number = 20) =>
+      queryOptions<PaginatedResult<UserDto>>({
+        queryKey: queryKeys.users.paginatedList(page, limit),
+        queryFn: async () => {
+          const result = await apiGetPaginated<UserDto>(`/users?page=${page}&limit=${limit}`);
+          return { data: result.data, meta: result.meta };
+        },
         staleTime: staleTime.list,
       }),
   },

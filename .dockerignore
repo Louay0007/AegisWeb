@@ -1,5 +1,6 @@
 node_modules
-apps/web/.next/cache
+dist
+apps/web/.next
 apps/web/tsconfig.tsbuildinfo
 .git
 .playwright-cli

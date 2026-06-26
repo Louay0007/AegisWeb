@@ -31,7 +31,6 @@ export type WorkerFileDto = {
   organizationId: string;
   workflowRunId: string | null;
   kind: string;
-  objectKey: string;
   mimeType: string;
   sizeBytes: number;
   sha256: string;

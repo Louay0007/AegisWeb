@@ -151,14 +151,16 @@ describe('phase 7 files module', () => {
       organizationId: organizationAId,
       workflowRunId,
       kind: FileKind.INVOICE,
-      bucket: storage.bucket,
       mimeType: 'application/octet-stream',
       sizeBytes: invoiceBytes.length,
       sha256: filesService.calculateSha256(invoiceBytes)
     });
-    expect(file.objectKey).toContain(`organizations/${organizationAId}/workflow-runs/${workflowRunId}/`);
-    expect(file.objectKey).toContain(file.id);
-    await expect(storage.objectExists(file.bucket, file.objectKey)).resolves.toBe(true);
+    expect(file).not.toHaveProperty('bucket');
+    expect(file).not.toHaveProperty('objectKey');
+    const stored = await database.client.file.findUniqueOrThrow({ where: { id: file.id } });
+    expect(stored.objectKey).toContain(`organizations/${organizationAId}/workflow-runs/${workflowRunId}/`);
+    expect(stored.objectKey).toContain(file.id);
+    await expect(storage.objectExists(stored.bucket, stored.objectKey)).resolves.toBe(true);
   }, 30000);
 
   it('returns file metadata and a short-lived signed read URL', async () => {
@@ -175,6 +177,8 @@ describe('phase 7 files module', () => {
       sizeBytes: invoiceBytes.length,
       sha256: filesService.calculateSha256(invoiceBytes)
     });
+    expect(response.body.data).not.toHaveProperty('bucket');
+    expect(response.body.data).not.toHaveProperty('objectKey');
     expect(response.body.data.signedReadUrl).toContain('X-Amz-Expires=300');
   });
 

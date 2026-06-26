@@ -23,6 +23,10 @@ export class AuthorizationReflector {
     return this.getArray<Permission>(AUTHORIZATION_METADATA.permissions, context);
   }
 
+  requiresStepUp(context: ExecutionContext): boolean {
+    return this.getBoolean(AUTHORIZATION_METADATA.stepUp, context);
+  }
+
   private getBoolean(key: string, context: ExecutionContext): boolean {
     return (
       this.reflector.getAllAndOverride<boolean>(key, [context.getHandler(), context.getClass()]) ?? false
