@@ -134,17 +134,17 @@ jobs:
           docker build --target api -t aegisweb-api:${{ github.sha }} .
           docker build --target worker -t aegisweb-worker:${{ github.sha }} .
           docker build --target web --build-arg NEXT_PUBLIC_API_URL=https://aegisweb.local -t aegisweb-web:${{ github.sha }} .
-      - uses: aquasecurity/trivy-action@0.28.0
+      - uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: aegisweb-api:${{ github.sha }}
           severity: CRITICAL,HIGH
           exit-code: '1'
-      - uses: aquasecurity/trivy-action@0.28.0
+      - uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: aegisweb-worker:${{ github.sha }}
           severity: CRITICAL,HIGH
           exit-code: '1'
-      - uses: aquasecurity/trivy-action@0.28.0
+      - uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: aegisweb-web:${{ github.sha }}
           severity: CRITICAL,HIGH
