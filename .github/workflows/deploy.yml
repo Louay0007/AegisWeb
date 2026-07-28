@@ -40,7 +40,7 @@ jobs:
       image_tag: ${{ steps.digests.outputs.image_tag }}
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: ${{ env.PNPM_VERSION }}
       - uses: actions/setup-node@v4
@@ -131,7 +131,7 @@ jobs:
     environment: production
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: ${{ env.PNPM_VERSION }}
       - uses: actions/setup-node@v4
