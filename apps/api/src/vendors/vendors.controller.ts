@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Get, Inject, Param, Patch, Post, Query } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { z } from 'zod';
-import { DomainError, DomainErrorCode, Permission, VendorCategory, VENDOR_CATEGORIES } from '@agentpass/domain';
+import { DomainError, DomainErrorCode, Permission, VendorCategory, VENDOR_CATEGORIES, ConnectorType, CONNECTOR_TYPES } from '@agentpass/domain';
 import { RequirePermission } from '../authorization/authorization-metadata.js';
 import { parsePageQuery, QueryRecord } from '../common/pagination.js';
 import { CurrentOrganizationId } from '../request-context/current-organization-id.decorator.js';
@@ -13,12 +13,17 @@ const categorySchema = z.custom<VendorCategory>(
   (value) => typeof value === 'string' && VENDOR_CATEGORIES.includes(value as VendorCategory)
 );
 
+const connectorTypeSchema = z.custom<ConnectorType>(
+  (value) => typeof value === 'string' && CONNECTOR_TYPES.includes(value as ConnectorType)
+);
+
 const metadataSchema = z.record(z.unknown()).optional();
 
 const createVendorSchema = z.object({
   name: z.string().min(1).max(160),
   website: z.string().url(),
   category: categorySchema,
+  connectorType: connectorTypeSchema.optional(),
   renewalDate: z.string().date().optional(),
   monthlyCostCents: z.number().int().min(0).optional(),
   ownerUserId: z.string().uuid().optional(),

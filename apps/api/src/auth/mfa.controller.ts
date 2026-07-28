@@ -61,6 +61,13 @@ function parseOrThrow<T>(schema: { safeParse(value: unknown): { success: true; d
 
 function writeRefreshCookie(response: CookieResponse, token: string, maxAgeSeconds: number, nodeEnv: string): void {
   response.setHeader('set-cookie', [
-    `${REFRESH_COOKIE_NAME}=${encodeURIComponent(token)}; HttpOnly; SameSite=Lax; Path=/auth; Max-Age=${maxAgeSeconds}${nodeEnv === 'production' ? '; Secure' : ''}`
+    `${REFRESH_COOKIE_NAME}=${encodeURIComponent(token)}; HttpOnly; SameSite=Lax; Path=/auth; Max-Age=${maxAgeSeconds}${refreshCookieSecureSuffix(nodeEnv)}`
   ]);
+}
+
+function refreshCookieSecureSuffix(nodeEnv: string): string {
+  if (process.env.SESSION_COOKIE_SECURE === 'false') return '';
+  if (process.env.SESSION_COOKIE_SECURE === 'true') return '; Secure';
+  if (process.env.DASHBOARD_BASE_URL?.startsWith('http://')) return '';
+  return nodeEnv === 'production' ? '; Secure' : '';
 }

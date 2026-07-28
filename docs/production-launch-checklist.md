@@ -33,11 +33,13 @@ Use this checklist before opening AegisWeb to paying design partners.
 - [ ] All backend and shared tests passing.
 - [ ] Frontend tests passing with `pnpm test:frontend` and component coverage with `pnpm test:component`.
 - [ ] E2E happy path passing for all supported workflows with `pnpm e2e:happy` or `pnpm test:e2e`.
+- [ ] Sandbox, Stripe Billing, and GitHub connector canaries green against dedicated test accounts.
 - [ ] Load test targets met with `pnpm load:api` and `pnpm load:workflow` (see `docs/load-test-targets.md`).
 - [ ] Lighthouse scores above 90.
 - [ ] Accessibility audit passed with `pnpm qa:a11y` and manual checklist in `docs/accessibility-manual-checklist.md`.
 - [ ] Mobile responsive validated with `pnpm qa:responsive`.
 - [ ] Dark mode and light mode validated.
+- [ ] `pnpm launch:check` passes with digest/rollback deploy gates.
 
 ## Operational Readiness
 

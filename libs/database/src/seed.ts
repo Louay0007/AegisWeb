@@ -9,6 +9,7 @@ import {
   ApprovalStatus,
   AuditActorType,
   AuditEventType,
+  ConnectorType,
   CredentialStatus,
   CredentialType,
   FileKind,
@@ -31,10 +32,16 @@ import { createPrismaClient } from './prisma.js';
 const prisma = createPrismaClient();
 
 const DEMO_DOMAIN = 'northstarlabs.dev';
-const DEMO_PASSWORD = 'Password123!';
+const DEMO_PASSWORD = process.env.DEMO_PASSWORD ?? 'Password123!';
 const VENDOR_SANDBOX_URL = (process.env.VENDOR_SANDBOX_URL ?? 'http://localhost:4202').replace(/\/$/, '');
 const VENDOR_SANDBOX_HOST = new URL(VENDOR_SANDBOX_URL).hostname;
-const VENDOR_ALLOWED_DOMAINS = Array.from(new Set(['localhost', VENDOR_SANDBOX_HOST]));
+const VENDOR_ALLOWED_DOMAINS = Array.from(
+  new Set(['localhost', 'vendor-sandbox', VENDOR_SANDBOX_HOST, 'sandbox.aegisweb.local', 'dashboard.stripe.com', 'github.com'])
+);
+
+function daysFromNow(days: number): Date {
+  return new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+}
 
 type AuditInput = {
   organizationId: string;
@@ -117,7 +124,8 @@ export async function seedDemoData(): Promise<void> {
     data: {
       name: 'Northstar Labs',
       domain: DEMO_DOMAIN,
-      plan: 'business'
+      plan: 'business',
+      billingEmail: 'billing@northstarlabs.dev'
     }
   });
 
@@ -243,20 +251,31 @@ export async function seedDemoData(): Promise<void> {
     renewalMonthlyPriceCents: 110000,
     unusedSeats: 5,
     risk: 'medium'
-  });
+  }, ConnectorType.SANDBOX);
   const nimbus = await createVendor('Nimbus Docs', `${VENDOR_SANDBOX_URL}/nimbus`, VendorCategory.PRODUCTIVITY, '2026-08-01', 24000, owner.id, {
     renewalMonthlyPriceCents: 24000,
     unusedSeats: 2,
     risk: 'low'
-  });
+  }, ConnectorType.SANDBOX);
   const atlas = await createVendor('Atlas CRM', `${VENDOR_SANDBOX_URL}/atlas`, VendorCategory.SALES, '2026-06-30', 150000, owner.id, {
     renewalMonthlyPriceCents: 190000,
     unusedSeats: 8,
     risk: 'high'
-  });
+  }, ConnectorType.SANDBOX);
   const payroll = await createVendor('PayrollPro', `${VENDOR_SANDBOX_URL}/payroll`, VendorCategory.PAYROLL, '2026-09-01', 95000, owner.id, {
     risk: 'blocked'
-  });
+  }, ConnectorType.SANDBOX);
+  const stripeBilling = await createVendor('Stripe Billing', 'https://dashboard.stripe.com', VendorCategory.FINANCE, '2026-12-01', 29900, owner.id, {
+    renewalMonthlyPriceCents: 29900,
+    connectorNotes: 'Phase 2 Stripe Billing connector. Use real Stripe portal credentials + optional TOTP.',
+    risk: 'medium'
+  }, ConnectorType.STRIPE_BILLING);
+  const githubOrg = await createVendor('GitHub Organization', 'https://github.com', VendorCategory.OTHER, '2026-11-01', 21000, owner.id, {
+    renewalMonthlyPriceCents: 21000,
+    githubOrg: 'northstarlabs',
+    connectorNotes: 'Phase 2 GitHub connector. Use org owner credentials + optional TOTP.',
+    risk: 'medium'
+  }, ConnectorType.GITHUB);
 
   async function createVendor(
     name: string,
@@ -265,7 +284,8 @@ export async function seedDemoData(): Promise<void> {
     renewalDate: string,
     monthlyCostCents: number,
     ownerUserId: string,
-    metadataJson: Prisma.InputJsonObject
+    metadataJson: Prisma.InputJsonObject,
+    connectorType: ConnectorType = ConnectorType.SANDBOX
   ) {
     const vendor = await prisma.vendor.create({
       data: {
@@ -276,6 +296,7 @@ export async function seedDemoData(): Promise<void> {
         renewalDate: new Date(`${renewalDate}T00:00:00.000Z`),
         monthlyCostCents,
         ownerUserId,
+        connectorType,
         metadataJson
       }
     });
@@ -285,7 +306,7 @@ export async function seedDemoData(): Promise<void> {
       actorType: AuditActorType.USER,
       actorId: owner.id,
       eventType: AuditEventType.VENDOR_CREATED,
-      eventDataJson: { name, website, category }
+      eventDataJson: { name, website, category, connectorType }
     });
 
     return vendor;
@@ -351,6 +372,8 @@ export async function seedDemoData(): Promise<void> {
   await createCredential(nimbus.id, 'Nimbus Docs Billing Login', 'billing@northstarlabs.dev', 'nimbus-local-password', [invoiceCollector.id]);
   await createCredential(atlas.id, 'Atlas CRM Ops Login', 'ops@northstarlabs.dev', 'atlas-local-password', [procurementBot.id]);
   await createCredential(payroll.id, 'PayrollPro Payroll Login', 'payroll@northstarlabs.dev', 'payroll-local-password', []);
+  await createCredential(stripeBilling.id, 'Stripe Dashboard Finance Login', 'finance@northstarlabs.dev', 'replace-with-stripe-password', [procurementBot.id]);
+  await createCredential(githubOrg.id, 'GitHub Org Owner Login', 'ops@northstarlabs.dev', 'replace-with-github-password', [procurementBot.id]);
 
   async function createCredential(vendorId: string, label: string, username: string, password: string, agentIds: string[]) {
     const credential = await prisma.credential.create({
@@ -536,7 +559,7 @@ export async function seedDemoData(): Promise<void> {
         amountCents: 48000,
         screenshotFileId: screenshot.id,
         policyTriggeredJson: { rule: 'change_plan_requires_approval' },
-        expiresAt: new Date('2026-06-13T12:00:00.000Z')
+        expiresAt: daysFromNow(7)
       }
     });
     await recordAudit({ organizationId: organization.id, workflowRunId: run.id, agentId, actorType: AuditActorType.WORKER, eventType: AuditEventType.APPROVAL_REQUESTED, eventDataJson: { summary: 'Acme downgrade approval requested.' } });
@@ -747,7 +770,10 @@ export async function seedDemoData(): Promise<void> {
     return receipt;
   }
 
-  console.log(`Seeded AgentPass demo data for ${organization.name}`);
+  console.log(`Seeded AegisWeb demo data for ${organization.name}`);
+  console.log(`Demo password for all users: ${DEMO_PASSWORD}`);
+  console.log('Demo users: founder@ / finance@ / auditor@ / dev@ northstarlabs.dev');
+  console.log(`Vendors: Acme (sandbox), Nimbus, Atlas, PayrollPro, Stripe Billing (${stripeBilling.connectorType}), GitHub (${githubOrg.connectorType})`);
 }
 
 export async function disconnectSeedPrisma(): Promise<void> {

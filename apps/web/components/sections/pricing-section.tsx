@@ -44,7 +44,7 @@ const plans = [
     features: [
       "10 controlled agents",
       "100 connected vendors",
-      "Slack and email approvals",
+      "Dashboard and email approvals",
       "Audit and receipt exports",
       "Priority workflow support",
     ],

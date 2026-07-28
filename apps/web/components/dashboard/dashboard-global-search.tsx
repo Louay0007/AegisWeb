@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { ArrowUpRight, Search } from "iconoir-react";
+import { ArrowUpRight, Search } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -148,8 +148,13 @@ export function DashboardGlobalSearch() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="icon" aria-label="Search dashboard">
-          <Search className="size-4" strokeWidth={1.8} />
+        <Button
+          variant="outline"
+          size="icon"
+          className="size-10 dark:border-white/25 dark:bg-white/5 dark:text-white dark:hover:bg-white/10 dark:hover:text-white"
+          aria-label="Search dashboard"
+        >
+          <Search className="size-[1.125rem]" strokeWidth={1.75} />
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-2xl">

@@ -23,7 +23,7 @@ import {
   WorkflowQueueJobData
 } from '@agentpass/domain';
 import { WorkerAuditService } from '../audit/worker-audit.service.js';
-import { SandboxVendorConnector } from '../connector/sandbox-vendor.connector.js';
+import { ConnectorRegistry } from '../connector/connector-registry.service.js';
 import { RenewalInfo, VendorCredentials } from '../connector/vendor-connector.types.js';
 import { WorkerDatabaseService } from '../database/worker-database.service.js';
 import { InternalApiClient } from '../internal-api/internal-api-client.service.js';
@@ -40,7 +40,7 @@ export type WorkflowExecutionResult = {
 
 type ExecutableRun = WorkflowRun & {
   workflow: { configurationJson: Prisma.JsonValue; template: WorkflowTemplate };
-  vendor: { website: string } | null;
+  vendor: { website: string; connectorType: string; metadataJson: Prisma.JsonValue } | null;
 };
 
 type PolicySnapshot = {
@@ -54,7 +54,7 @@ export class WorkflowExecutorService {
     @Inject(WorkerAuditService) private readonly audit: WorkerAuditService,
     @Inject(RunCancellationService) private readonly cancellation: RunCancellationService,
     @Inject(RunHeartbeatService) private readonly heartbeat: RunHeartbeatService,
-    @Inject(SandboxVendorConnector) private readonly sandboxConnector: SandboxVendorConnector,
+    @Inject(ConnectorRegistry) private readonly connectors: ConnectorRegistry,
     @Inject(InternalApiClient) private readonly internalApi: InternalApiClient,
     @Inject(WorkerReceiptService) private readonly receipts: WorkerReceiptService,
     @Inject(WorkerLogger) private readonly logger: WorkerLogger
@@ -64,7 +64,8 @@ export class WorkflowExecutorService {
     this.internalApi.setRunToken(data.workerRunToken);
     try {
       if (data.mode === 'resume') {
-        return this.executeResume(data, jobId);
+        // await is required so finally does not clear the run token before work finishes
+        return await this.executeResume(data, jobId);
       }
 
       if (data.mode !== 'start') {
@@ -76,19 +77,19 @@ export class WorkflowExecutorService {
       }
 
       if (data.template === 'noop') {
-        return this.executeNoop(data, jobId);
+        return await this.executeNoop(data, jobId);
       }
 
       if (data.template === WorkflowTemplate.VENDOR_INVOICE_DOWNLOAD) {
-        return this.executeInvoiceDownload(data, jobId);
+        return await this.executeInvoiceDownload(data, jobId);
       }
 
       if (data.template === WorkflowTemplate.SAAS_RENEWAL_CHECK) {
-        return this.executeRenewalCheck(data, jobId);
+        return await this.executeRenewalCheck(data, jobId);
       }
 
       if (data.template === WorkflowTemplate.PLAN_DOWNGRADE_REQUEST) {
-        return this.executePlanDowngradeStart(data, jobId);
+        return await this.executePlanDowngradeStart(data, jobId);
       }
 
       return {
@@ -139,7 +140,8 @@ export class WorkflowExecutorService {
         artifactDir,
         timeoutMs: 10000,
         headless: true,
-        allowPrivateNetwork: process.env.NODE_ENV !== 'production'
+        allowPrivateNetwork:
+          process.env.NODE_ENV !== 'production' || process.env.ALLOW_LOCAL_PRODUCTION_DEPENDENCIES === 'true'
       });
 
       await this.internalApi.recordRunEvent(running.id, {
@@ -152,18 +154,17 @@ export class WorkflowExecutorService {
         }
       });
 
-      const context = {
-        workflowRunId: running.id,
-        organizationId: running.organizationId,
-        agentId: running.agentId,
-        vendorId: running.vendorId,
+      const connector = this.connectors.assertSupports(run.vendor?.connectorType, run.workflow.template);
+      const context = this.buildConnectorContext({
+        run: running,
         baseUrl,
         browser,
-        credentials
-      };
+        credentials,
+        vendor: run.vendor
+      });
 
-      await this.sandboxConnector.login(context);
-      const invoice = await this.sandboxConnector.downloadLatestInvoice(context);
+      await connector.login(context);
+      const invoice = await connector.downloadLatestInvoice(context);
       await this.uploadInvoice(running, invoice.path, invoice.suggestedFilename);
 
       const screenshot = await browser.captureScreenshot('invoice-download-complete');
@@ -314,7 +315,8 @@ export class WorkflowExecutorService {
         artifactDir,
         timeoutMs: 10000,
         headless: true,
-        allowPrivateNetwork: process.env.NODE_ENV !== 'production'
+        allowPrivateNetwork:
+          process.env.NODE_ENV !== 'production' || process.env.ALLOW_LOCAL_PRODUCTION_DEPENDENCIES === 'true'
       });
 
       await this.internalApi.recordRunEvent(running.id, {
@@ -327,18 +329,17 @@ export class WorkflowExecutorService {
         }
       });
 
-      const context = {
-        workflowRunId: running.id,
-        organizationId: running.organizationId,
-        agentId: running.agentId,
-        vendorId: running.vendorId,
+      const connector = this.connectors.assertSupports(run.vendor?.connectorType, run.workflow.template);
+      const context = this.buildConnectorContext({
+        run: running,
         baseUrl,
         browser,
-        credentials
-      };
+        credentials,
+        vendor: run.vendor
+      });
 
-      await this.sandboxConnector.login(context);
-      const renewal = await this.sandboxConnector.readRenewalInfo(context);
+      await connector.login(context);
+      const renewal = await connector.readRenewalInfo(context);
       const result = buildRenewalResult(renewal);
       const summary = renewalSummary(result);
 
@@ -482,7 +483,8 @@ export class WorkflowExecutorService {
         artifactDir,
         timeoutMs: 10000,
         headless: true,
-        allowPrivateNetwork: process.env.NODE_ENV !== 'production'
+        allowPrivateNetwork:
+          process.env.NODE_ENV !== 'production' || process.env.ALLOW_LOCAL_PRODUCTION_DEPENDENCIES === 'true'
       });
 
       await this.internalApi.recordRunEvent(running.id, {
@@ -495,18 +497,17 @@ export class WorkflowExecutorService {
         }
       });
 
-      const context = {
-        workflowRunId: running.id,
-        organizationId: running.organizationId,
-        agentId: running.agentId,
-        vendorId: running.vendorId,
+      const connector = this.connectors.assertSupports(run.vendor?.connectorType, run.workflow.template);
+      const context = this.buildConnectorContext({
+        run: running,
         baseUrl,
         browser,
-        credentials
-      };
+        credentials,
+        vendor: run.vendor
+      });
 
-      await this.sandboxConnector.login(context);
-      const proposal = await this.sandboxConnector.prepareDowngrade(context);
+      await connector.login(context);
+      const proposal = await connector.prepareDowngrade(context);
       if (proposal.policyDecision !== 'require_approval') {
         throw new DomainError(DomainErrorCode.ValidationFailed, 'Downgrade proposal must require approval in the MVP flow.');
       }
@@ -593,22 +594,22 @@ export class WorkflowExecutorService {
         artifactDir,
         timeoutMs: 10000,
         headless: true,
-        allowPrivateNetwork: process.env.NODE_ENV !== 'production'
+        allowPrivateNetwork:
+          process.env.NODE_ENV !== 'production' || process.env.ALLOW_LOCAL_PRODUCTION_DEPENDENCIES === 'true'
       });
 
-      const context = {
-        workflowRunId: running.id,
-        organizationId: running.organizationId,
-        agentId: running.agentId,
-        vendorId: running.vendorId,
+      const connector = this.connectors.assertSupports(run.vendor?.connectorType, run.workflow.template);
+      const context = this.buildConnectorContext({
+        run: running,
         baseUrl,
         browser,
         credentials,
+        vendor: run.vendor,
         approvalToken: approval.id
-      };
+      });
 
-      await this.sandboxConnector.login(context);
-      const submitted = await this.sandboxConnector.submitDowngrade(context);
+      await connector.login(context);
+      const submitted = await connector.submitDowngrade(context);
       const screenshot = await browser.captureScreenshot('downgrade-submitted');
       await this.uploadScreenshot(running, screenshot.path);
 
@@ -797,7 +798,7 @@ export class WorkflowExecutorService {
       },
       include: {
         workflow: { select: { configurationJson: true, template: true } },
-        vendor: { select: { website: true } }
+        vendor: { select: { website: true, connectorType: true, metadataJson: true } }
       }
     });
 
@@ -935,12 +936,48 @@ export class WorkflowExecutorService {
 
   private async decryptCredentials(credentialId: string, workflowRunId: string): Promise<VendorCredentials> {
     const decrypted = await this.internalApi.decryptCredentialForRun(credentialId, { workflowRunId });
-    const { username, password } = decrypted.data.secretJson;
+    const secret = decrypted.data.secretJson;
+    const { username, password } = secret;
     if (typeof username !== 'string' || typeof password !== 'string') {
       throw new DomainError(DomainErrorCode.CredentialUnavailable, 'Credential payload must include username and password.');
     }
 
-    return { username, password };
+    const totpSecret =
+      typeof secret.totpSecret === 'string'
+        ? secret.totpSecret
+        : typeof secret.totp === 'string'
+          ? secret.totp
+          : undefined;
+
+    return { username, password, totpSecret };
+  }
+
+  private buildConnectorContext(input: {
+    run: WorkflowRun;
+    baseUrl: string;
+    browser: Awaited<ReturnType<typeof createControlledContext>>;
+    credentials: VendorCredentials;
+    vendor: ExecutableRun['vendor'];
+    approvalToken?: string;
+  }) {
+    const metadataJson =
+      input.vendor?.metadataJson &&
+      typeof input.vendor.metadataJson === 'object' &&
+      !Array.isArray(input.vendor.metadataJson)
+        ? (input.vendor.metadataJson as Record<string, unknown>)
+        : undefined;
+
+    return {
+      workflowRunId: input.run.id,
+      organizationId: input.run.organizationId,
+      agentId: input.run.agentId,
+      vendorId: input.run.vendorId,
+      baseUrl: input.baseUrl,
+      browser: input.browser,
+      credentials: input.credentials,
+      approvalToken: input.approvalToken,
+      metadataJson
+    };
   }
 
   private async uploadInvoice(run: WorkflowRun, path: string, suggestedFilename: string): Promise<void> {

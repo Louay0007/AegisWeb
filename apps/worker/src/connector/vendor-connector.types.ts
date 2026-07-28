@@ -4,6 +4,8 @@ import { ControlledBrowserContext, DownloadCapture } from '@agentpass/browser-ru
 export type VendorCredentials = {
   username: string;
   password: string;
+  /** Optional vaulted TOTP secret for MFA-gated vendor logins. */
+  totpSecret?: string;
 };
 
 export type ConnectorExecutionContext = {
@@ -15,6 +17,7 @@ export type ConnectorExecutionContext = {
   browser: ControlledBrowserContext;
   credentials: VendorCredentials;
   approvalToken?: string;
+  metadataJson?: Record<string, unknown>;
 };
 
 export type FileResult = DownloadCapture & {
@@ -53,6 +56,7 @@ export type ActionResult = {
 };
 
 export interface VendorConnector {
+  readonly connectorType: string;
   login(context: ConnectorExecutionContext): Promise<void>;
   downloadLatestInvoice(context: ConnectorExecutionContext): Promise<FileResult>;
   readRenewalInfo(context: ConnectorExecutionContext): Promise<RenewalInfo>;

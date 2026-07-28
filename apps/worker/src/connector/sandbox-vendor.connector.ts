@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { ActionType, DomainError, DomainErrorCode, PolicyDecision } from '@agentpass/domain';
+import { ActionType, ConnectorType, DomainError, DomainErrorCode, PolicyDecision } from '@agentpass/domain';
 import { WorkerPolicyClient } from '../policy-client/worker-policy-client.service.js';
 import { ConnectorActionAttemptService } from './connector-action-attempt.service.js';
 import {
@@ -13,6 +13,8 @@ import {
 
 @Injectable()
 export class SandboxVendorConnector implements VendorConnector {
+  readonly connectorType = ConnectorType.Sandbox;
+
   constructor(
     @Inject(WorkerPolicyClient) private readonly policy: WorkerPolicyClient,
     @Inject(ConnectorActionAttemptService) private readonly attempts: ConnectorActionAttemptService

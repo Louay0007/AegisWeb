@@ -13,6 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { HelpTooltip } from "@/components/support/help-tooltip";
 import { apiGet, apiPatch, apiPost } from "@/lib/api/api-client";
 import { authErrorMessage, useAuthSession } from "@/lib/auth/auth-session";
+import { useStepUp } from "@/hooks/use-step-up";
 
 type Organization = {
   id: string;
@@ -36,7 +37,6 @@ type NotificationPreferences = {
   approvalRequests: boolean;
   runCompletions: boolean;
   failures: boolean;
-  slackWebhookUrl: string | null;
 };
 
 type BillingStatus = {
@@ -70,6 +70,7 @@ export function ProductSettingsPage() {
   const [billing, setBilling] = useState<BillingStatus | null>(null);
   const [status, setStatus] = useState("Loading settings...");
   const [error, setError] = useState("");
+  const { requestStepUp, dialog: stepUpDialog } = useStepUp();
 
   async function load() {
     setError("");
@@ -101,12 +102,18 @@ export function ProductSettingsPage() {
     if (!organization) return;
     setError("");
     try {
-      const updated = await apiPatch<Organization>("/organization", {
-        name: organization.name,
-        domain: organization.domain,
-        billingEmail: organization.billingEmail || null,
-      });
+      const stepUpToken = await requestStepUp();
+      const updated = await apiPatch<Organization>(
+        "/organization",
+        {
+          name: organization.name,
+          domain: organization.domain,
+          billingEmail: organization.billingEmail || null,
+        },
+        { stepUpToken },
+      );
       setOrganization(updated);
+      setStatus("Organization saved.");
     } catch (apiError) {
       setError(authErrorMessage(apiError));
     }
@@ -116,14 +123,25 @@ export function ProductSettingsPage() {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     setError("");
+    setStatus("");
     try {
-      await apiPost<User>("/users/invite", {
-        email: String(form.get("email") ?? ""),
-        name: String(form.get("name") ?? ""),
-        role: String(form.get("role") ?? "developer"),
-      });
+      const result = await apiPost<User & { inviteEmailDelivered?: boolean; inviteEmailWarning?: string | null }>(
+        "/users/invite",
+        {
+          email: String(form.get("email") ?? ""),
+          name: String(form.get("name") ?? ""),
+          role: String(form.get("role") ?? "developer"),
+        },
+      );
       event.currentTarget.reset();
+      const deliveryMessage =
+        result.inviteEmailDelivered === false
+          ? result.inviteEmailWarning
+            ? `User invited, but email was not delivered: ${result.inviteEmailWarning}`
+            : "User invited, but the invitation email was not delivered."
+          : "Invitation sent.";
       await load();
+      setStatus(deliveryMessage);
     } catch (apiError) {
       setError(authErrorMessage(apiError));
     }
@@ -185,6 +203,7 @@ export function ProductSettingsPage() {
 
   return (
     <div className="space-y-6">
+      {stepUpDialog}
       <PageHeader eyebrow="Workspace" title="Settings" description="Complete the workspace profile, members, account security, and notifications." />
       {status ? <p className="text-sm text-muted-foreground" role="status">{status}</p> : null}
       {error ? <p className="border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive" role="alert">{error}</p> : null}
@@ -381,7 +400,9 @@ function NotificationPanel({ prefs, onChange }: { prefs: NotificationPreferences
         <ToggleRow label="Approval requests" checked={prefs.approvalRequests} onCheckedChange={(value) => onChange({ ...prefs, approvalRequests: value })} />
         <ToggleRow label="Run completions" checked={prefs.runCompletions} onCheckedChange={(value) => onChange({ ...prefs, runCompletions: value })} />
         <ToggleRow label="Failures" checked={prefs.failures} onCheckedChange={(value) => onChange({ ...prefs, failures: value })} />
-        <div className="space-y-2"><Label htmlFor="slackWebhookUrl">Slack webhook URL</Label><Input id="slackWebhookUrl" disabled value="Coming soon" /></div>
+        <p className="text-sm text-muted-foreground">
+          Approvals are delivered by dashboard and email in this release. Slack notifications are deferred to a later phase.
+        </p>
       </div>
     </section>
   );

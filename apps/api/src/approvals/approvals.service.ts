@@ -56,6 +56,8 @@ export class ApprovalsService {
       throw new DomainError(DomainErrorCode.PermissionDenied, 'Organization context is required.');
     }
 
+    await this.expiration.expireDue();
+
     const where: Prisma.ApprovalRequestWhereInput = {
       organizationId,
       status: query.status,
@@ -315,18 +317,7 @@ export class ApprovalsService {
     }
 
     if (this.expiration.isExpired(approval)) {
-      const expired = await this.database.client.approvalRequest.update({
-        where: { id: approval.id },
-        data: { status: ApprovalStatus.EXPIRED }
-      });
-      await this.audit.record({
-        organizationId: expired.organizationId,
-        workflowRunId: expired.workflowRunId,
-        agentId: expired.requestedByAgentId,
-        actorType: AuditActorType.SYSTEM,
-        eventType: AuditEventType.APPROVAL_EXPIRED,
-        eventDataJson: { approvalRequestId: expired.id, expiresAt: expired.expiresAt?.toISOString() ?? null }
-      });
+      await this.expiration.expireApproval(approval);
       throw new DomainError(DomainErrorCode.ValidationFailed, 'Expired approvals cannot be decided.');
     }
   }

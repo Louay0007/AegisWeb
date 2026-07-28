@@ -31,6 +31,7 @@ export type VendorDto = {
   name: string;
   website: string;
   category: string;
+  connectorType?: string;
   renewalDate: string | null;
   monthlyCostCents: number | null;
   ownerUserId: string | null;
@@ -206,6 +207,7 @@ export function mapVendor(dto: VendorDto): VendorFixture {
     name: dto.name,
     website: dto.website,
     category: dto.category,
+    connectorType: dto.connectorType ?? "sandbox",
     renewalDate: dto.renewalDate ?? "Not set",
     monthlyCost: monthly,
     renewalCost: monthly * 12,

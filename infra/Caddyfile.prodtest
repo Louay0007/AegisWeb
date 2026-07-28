@@ -1,0 +1,39 @@
+{
+	local_certs
+}
+
+app.aegisweb.local {
+	tls internal
+	encode gzip
+	reverse_proxy web:3000
+}
+
+api.aegisweb.local {
+	tls internal
+	encode gzip
+	reverse_proxy api:3001
+}
+
+sandbox.aegisweb.local {
+	tls internal
+	encode gzip
+	reverse_proxy vendor-sandbox:4202
+}
+
+mail.aegisweb.local {
+	tls internal
+	encode gzip
+	reverse_proxy mailpit:8025
+}
+
+minio.aegisweb.local {
+	tls internal
+	encode gzip
+	reverse_proxy minio:9001
+}
+
+grafana.aegisweb.local {
+	tls internal
+	encode gzip
+	reverse_proxy grafana:3000
+}

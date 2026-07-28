@@ -2,8 +2,12 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import type { NextRequest, NextResponse } from "next/server";
 
-export const SESSION_COOKIE_NAME = "__Host-aegisweb_session";
 const SESSION_TTL_SECONDS = 30 * 24 * 60 * 60;
+
+/** `__Host-` requires Secure; HTTP demos must use a plain cookie name. */
+export const SESSION_COOKIE_NAME = sessionCookieSecure()
+  ? "__Host-aegisweb_session"
+  : "aegisweb_session";
 
 export type BffSession = {
   accessToken: string;
@@ -29,7 +33,7 @@ export function writeSessionCookie(response: NextResponse, session: BffSession):
     name: SESSION_COOKIE_NAME,
     value: signSession(session),
     httpOnly: true,
-    secure: true,
+    secure: sessionCookieSecure(),
     sameSite: "lax",
     path: "/",
     maxAge: SESSION_TTL_SECONDS,
@@ -41,11 +45,19 @@ export function clearSessionCookie(response: NextResponse): void {
     name: SESSION_COOKIE_NAME,
     value: "",
     httpOnly: true,
-    secure: true,
+    secure: sessionCookieSecure(),
     sameSite: "lax",
     path: "/",
     maxAge: 0,
   });
+}
+
+function sessionCookieSecure(): boolean {
+  if (process.env.SESSION_COOKIE_SECURE === "false") return false;
+  if (process.env.SESSION_COOKIE_SECURE === "true") return true;
+  const dashboard = process.env.DASHBOARD_BASE_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "";
+  if (dashboard.startsWith("http://")) return false;
+  return process.env.NODE_ENV === "production";
 }
 
 function signSession(session: BffSession): string {

@@ -5,8 +5,8 @@ import { AnimatedSection, MotionSurface, SectionReveal } from "@/components/sect
 const integrations = [
   {
     icon: MessageSquare,
-    title: "Slack approvals",
-    description: "Send approval requests where finance and ops teams already work.",
+    title: "Email approvals",
+    description: "Notify finance and ops when an agent action needs a human decision.",
   },
   {
     icon: Webhook,

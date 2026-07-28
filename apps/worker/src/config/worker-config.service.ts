@@ -35,6 +35,7 @@ const localDefaults = {
   S3_SECRET_KEY: 'agentpass-secret',
   S3_FORCE_PATH_STYLE: 'true',
   VENDOR_SANDBOX_URL: 'http://localhost:4202',
+  ALLOW_LOCAL_PRODUCTION_DEPENDENCIES: 'false',
   LOG_LEVEL: 'debug'
 } as const;
 
@@ -82,6 +83,7 @@ const workerEnvSchema = z.object({
   S3_SECRET_KEY: z.string().min(1),
   S3_FORCE_PATH_STYLE: boolFromEnv,
   VENDOR_SANDBOX_URL: urlString,
+  ALLOW_LOCAL_PRODUCTION_DEPENDENCIES: boolFromEnv.optional().default(false),
   LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal', 'silent']).optional().default('info')
 });
 
@@ -91,8 +93,14 @@ export function loadWorkerConfig(env: NodeJS.ProcessEnv = process.env, options: 
   const parsed = workerEnvSchema.parse(mergedEnv);
 
   const apiBaseUrl = parsed.API_BASE_URL || `http://localhost:${parsed.API_PORT}`;
-  if (parsed.NODE_ENV === 'production' && !apiBaseUrl.startsWith('https://')) {
-    throw new Error('API_BASE_URL must use HTTPS in production worker configuration.');
+  if (
+    parsed.NODE_ENV === 'production' &&
+    !apiBaseUrl.startsWith('https://') &&
+    !parsed.ALLOW_LOCAL_PRODUCTION_DEPENDENCIES
+  ) {
+    throw new Error(
+      'API_BASE_URL must use HTTPS in production worker configuration (or set ALLOW_LOCAL_PRODUCTION_DEPENDENCIES=true for Docker-internal HTTP).'
+    );
   }
 
   return {

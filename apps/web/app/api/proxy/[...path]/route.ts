@@ -10,8 +10,10 @@ async function handle(request: NextRequest, context: { params: Promise<{ path?: 
   const headers = new Headers();
   const contentType = request.headers.get("content-type");
   const requestId = request.headers.get("x-request-id");
+  const stepUpToken = request.headers.get("x-step-up-token");
   if (contentType) headers.set("content-type", contentType);
   if (requestId) headers.set("x-request-id", requestId);
+  if (stepUpToken) headers.set("x-step-up-token", stepUpToken);
   return proxyWithSession(request, targetPath, {
     method: request.method,
     headers,

@@ -255,6 +255,18 @@ pnpm stack:hybrid:logs
 pnpm stack:hybrid:down
 ```
 
+### Production-like Docker stack (recommended for end-to-end)
+
+Runs the full stack with `NODE_ENV=production`, HTTPS via Caddy, Stripe **test** mode, and seeded demo data — without publishing Postgres/Redis on conflicting host ports:
+
+```bash
+pnpm prodtest:env
+sudo sh -c "grep -q 'app.aegisweb.local' /etc/hosts || echo '127.0.0.1 app.aegisweb.local api.aegisweb.local sandbox.aegisweb.local mail.aegisweb.local minio.aegisweb.local grafana.aegisweb.local' >> /etc/hosts"
+pnpm prodtest:up
+```
+
+Open https://app.aegisweb.local and follow `docs/PRODTEST_WORKFLOW.md`.
+
 ## Local URLs
 
 | Service | URL |

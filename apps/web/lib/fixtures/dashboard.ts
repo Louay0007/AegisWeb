@@ -21,6 +21,7 @@ export type VendorFixture = {
   name: string;
   website: string;
   category: string;
+  connectorType?: string;
   renewalDate: string;
   monthlyCost: number;
   renewalCost: number;

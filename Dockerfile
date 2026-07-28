@@ -12,6 +12,8 @@ COPY --chown=node:node apps ./apps
 COPY --chown=node:node libs ./libs
 COPY --chown=node:node prisma ./prisma
 RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store pnpm install --frozen-lockfile --prod=false && pnpm db:generate
+# Runtime processes run as `node` and may need to write temp files under WORKDIR.
+RUN chown -R node:node /app
 
 FROM base AS api-builder
 RUN pnpm build:api
@@ -34,10 +36,13 @@ FROM base AS worker-builder
 RUN pnpm build:worker
 
 FROM base AS worker
-RUN npx playwright install --with-deps chromium
+# Install browser deps as root, then browsers into the runtime user's cache.
+RUN npx playwright install-deps chromium
+USER node
+ENV PLAYWRIGHT_BROWSERS_PATH=/home/node/.cache/ms-playwright
+RUN npx playwright install chromium
 COPY --chown=node:node --from=worker-builder /app/dist ./dist
 ENV NODE_ENV=production
-USER node
 CMD ["pnpm", "start:worker:prod"]
 
 FROM base AS web-builder
@@ -45,11 +50,12 @@ ARG NEXT_PUBLIC_API_URL
 ARG NEXT_PUBLIC_ENABLE_DEMO_MODE=false
 ARG NEXT_PUBLIC_ENABLE_FIXTURE_FALLBACK=false
 ARG NEXT_PUBLIC_ALLOW_LOCAL_API_URL=false
+ARG ALLOW_HTTP_PUBLIC_API_URL=false
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_ENABLE_DEMO_MODE=$NEXT_PUBLIC_ENABLE_DEMO_MODE
 ENV NEXT_PUBLIC_ENABLE_FIXTURE_FALLBACK=$NEXT_PUBLIC_ENABLE_FIXTURE_FALLBACK
 ENV NEXT_PUBLIC_ALLOW_LOCAL_API_URL=$NEXT_PUBLIC_ALLOW_LOCAL_API_URL
-RUN node -e "const u=process.env.NEXT_PUBLIC_API_URL; if (!u || !u.startsWith('https://')) { throw new Error('NEXT_PUBLIC_API_URL must be an HTTPS URL for production web builds.'); }"
+RUN node -e "const u=process.env.NEXT_PUBLIC_API_URL; const allowHttp=process.env.ALLOW_HTTP_PUBLIC_API_URL==='true'; if (!u || (!u.startsWith('https://') && !(allowHttp && u.startsWith('http://')))) { throw new Error('NEXT_PUBLIC_API_URL must be an HTTPS URL for production web builds (or http:// with ALLOW_HTTP_PUBLIC_API_URL=true for IP demos).'); }"
 RUN pnpm --filter my-v0-project build
 
 FROM base AS web

@@ -1,5 +1,6 @@
 export * from './ids.js';
 export * from './enums.js';
+export * from './connectors.js';
 export * from './permissions.js';
 export * from './policy.js';
 export * from './workflows.js';

@@ -14,8 +14,18 @@ export default function Page() {
       <MfaSetup enabled={user?.mfaEnabled} />
       <ActiveSessions />
       <section className="grid gap-4 md:grid-cols-2">
-        <div className="border border-border bg-card p-5 shadow-sm"><h2 className="font-semibold">API keys</h2><p className="mt-1 text-sm text-muted-foreground">API key management is reserved for the enterprise API surface.</p></div>
-        <div className="border border-border bg-card p-5 shadow-sm"><h2 className="font-semibold">Webhooks</h2><p className="mt-1 text-sm text-muted-foreground">Webhook delivery will be configured here when integrations ship.</p></div>
+        <div className="border border-border bg-card p-5 shadow-sm">
+          <h2 className="font-semibold">API keys</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Public API keys are deferred to a later phase. Use the dashboard and authenticated BFF session for now.
+          </p>
+        </div>
+        <div className="border border-border bg-card p-5 shadow-sm">
+          <h2 className="font-semibold">Webhooks</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Outbound webhooks are deferred. Approvals and run events are available in the dashboard and email notifications.
+          </p>
+        </div>
       </section>
     </div>
   );

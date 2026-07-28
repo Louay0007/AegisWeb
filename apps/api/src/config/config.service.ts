@@ -46,6 +46,7 @@ export type AppConfig = {
   stripeBusinessPriceId?: string;
   stripeSuccessUrl: string;
   stripeCancelUrl: string;
+  allowUnconfiguredBilling: boolean;
 };
 
 type LoadConfigOptions = {
@@ -79,6 +80,7 @@ const localDefaults = {
   LOG_LEVEL: "debug",
   ENABLE_OPENAPI: "true",
   ALLOW_LOCAL_PRODUCTION_DEPENDENCIES: "false",
+  ALLOW_UNCONFIGURED_BILLING: "true",
   API_TRUSTED_PROXIES: "",
   RATE_LIMIT_WINDOW_MS: "60000",
   RATE_LIMIT_DEFAULT_MAX: "1000",
@@ -166,6 +168,7 @@ const envSchema = z.object({
   LOG_LEVEL: z.enum(["trace", "debug", "info", "warn", "error", "fatal", "silent"]).optional().default("info"),
   ENABLE_OPENAPI: boolFromEnv,
   ALLOW_LOCAL_PRODUCTION_DEPENDENCIES: boolFromEnv.optional().default(false),
+  ALLOW_UNCONFIGURED_BILLING: boolFromEnv.optional().default(false),
   API_TRUSTED_PROXIES: z.string().optional().default(""),
   RATE_LIMIT_WINDOW_MS: intFromEnv.optional().default(60000),
   RATE_LIMIT_DEFAULT_MAX: intFromEnv.optional().default(1000),
@@ -240,10 +243,13 @@ export function loadAppConfig(
       "WORKER_INTERNAL_TOKEN",
       parsed.WORKER_INTERNAL_TOKEN,
     );
-    if (!parsed.DASHBOARD_BASE_URL.startsWith("https://")) {
+    if (!parsed.DASHBOARD_BASE_URL.startsWith("https://") && !parsed.ALLOW_LOCAL_PRODUCTION_DEPENDENCIES) {
       throw new Error("DASHBOARD_BASE_URL must use HTTPS in production.");
     }
-    if (!allowedOrigins.every((origin) => origin.startsWith("https://"))) {
+    if (
+      !allowedOrigins.every((origin) => origin.startsWith("https://")) &&
+      !parsed.ALLOW_LOCAL_PRODUCTION_DEPENDENCIES
+    ) {
       throw new Error(
         "API_ALLOWED_ORIGINS must contain HTTPS origins in production.",
       );
@@ -255,6 +261,15 @@ export function loadAppConfig(
       assertNotLocalProductionUrl("DATABASE_URL", parsed.DATABASE_URL);
       assertNotLocalProductionUrl("REDIS_URL", parsed.REDIS_URL);
       assertNotLocalProductionUrl("S3_ENDPOINT", parsed.S3_ENDPOINT);
+    }
+    if (!parsed.ALLOW_UNCONFIGURED_BILLING) {
+      assertRequired("STRIPE_SECRET_KEY", parsed.STRIPE_SECRET_KEY);
+      assertRequired("STRIPE_WEBHOOK_SECRET", parsed.STRIPE_WEBHOOK_SECRET);
+      assertRequired("STRIPE_STARTER_PRICE_ID", parsed.STRIPE_STARTER_PRICE_ID);
+      assertRequired("STRIPE_BUSINESS_PRICE_ID", parsed.STRIPE_BUSINESS_PRICE_ID);
+      if (parsed.STRIPE_SECRET_KEY && !parsed.STRIPE_SECRET_KEY.startsWith("sk_live_") && !parsed.STRIPE_SECRET_KEY.startsWith("sk_test_")) {
+        throw new Error("STRIPE_SECRET_KEY must be a Stripe secret key.");
+      }
     }
   }
 
@@ -299,7 +314,14 @@ export function loadAppConfig(
     stripeBusinessPriceId: parsed.STRIPE_BUSINESS_PRICE_ID,
     stripeSuccessUrl: parsed.STRIPE_SUCCESS_URL,
     stripeCancelUrl: parsed.STRIPE_CANCEL_URL,
+    allowUnconfiguredBilling: parsed.ALLOW_UNCONFIGURED_BILLING,
   };
+}
+
+function assertRequired(name: string, value: string | undefined): asserts value is string {
+  if (!value || !value.trim()) {
+    throw new Error(`${name} is required in production unless ALLOW_UNCONFIGURED_BILLING=true.`);
+  }
 }
 
 @Injectable()

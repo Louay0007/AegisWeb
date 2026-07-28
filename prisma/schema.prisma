@@ -44,6 +44,14 @@ enum VendorCategory {
   @@map("vendor_category")
 }
 
+enum ConnectorType {
+  SANDBOX        @map("sandbox")
+  STRIPE_BILLING @map("stripe_billing")
+  GITHUB         @map("github")
+
+  @@map("connector_type")
+}
+
 enum PolicyType {
   WEBSITE_ALLOWLIST  @map("website_allowlist")
   ACTION_PERMISSIONS @map("action_permissions")
@@ -353,6 +361,7 @@ model Vendor {
   name           String
   website        String
   category       VendorCategory
+  connectorType  ConnectorType  @default(SANDBOX) @map("connector_type")
   renewalDate    DateTime?      @map("renewal_date") @db.Date
   monthlyCostCents Int?         @map("monthly_cost_cents")
   ownerUserId    String?        @map("owner_user_id") @db.Uuid
@@ -371,6 +380,7 @@ model Vendor {
   @@unique([organizationId, website])
   @@index([organizationId])
   @@index([website])
+  @@index([connectorType])
   @@map("vendors")
 }
 

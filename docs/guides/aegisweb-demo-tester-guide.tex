@@ -1,0 +1,488 @@
+% =============================================================
+% AegisWeb — Public Demo & Seed Data Tester Guide
+% Compiler : pdfLaTeX (or LuaLaTeX)
+% Encoding : UTF-8
+% Build    : pdflatex aegisweb-demo-tester-guide.tex
+% =============================================================
+
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[english]{babel}
+
+\usepackage{mathptmx}
+\usepackage[scaled=0.92]{helvet}
+\usepackage{courier}
+
+\usepackage[
+  left=2.2cm,
+  right=2.2cm,
+  top=2.2cm,
+  bottom=2.4cm,
+  headheight=18pt
+]{geometry}
+
+\usepackage{setspace}
+\setstretch{1.15}
+\setlength{\parskip}{0.45em}
+\setlength{\parindent}{0pt}
+
+\usepackage{xcolor}
+\definecolor{aegisblue}{RGB}{10,54,120}
+\definecolor{aegisaccent}{RGB}{0,112,200}
+\definecolor{aegislight}{RGB}{232,242,255}
+\definecolor{aegisgray}{RGB}{90,96,105}
+\definecolor{codebg}{RGB}{248,249,252}
+\definecolor{okgreen}{RGB}{39,174,96}
+\definecolor{warnorange}{RGB}{211,84,0}
+\definecolor{softborder}{RGB}{210,218,230}
+
+\usepackage{fancyhdr}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{enumitem}
+\usepackage{tcolorbox}
+\usepackage{listings}
+\usepackage{titlesec}
+\usepackage{microtype}
+\usepackage{caption}
+
+\tcbuselibrary{skins,breakable}
+
+% ── Customize these before publishing ────────────────────────
+\newcommand{\ProductName}{AegisWeb}
+\newcommand{\DemoAppUrl}{http://80.240.27.4}
+\newcommand{\DemoApiUrl}{http://80.240.27.4/v1}
+\newcommand{\DemoSandboxUrl}{http://80.240.27.4/sandbox}
+\newcommand{\DemoMailUrl}{http://80.240.27.4/mail}
+\newcommand{\DemoPassword}{Password123!}
+\newcommand{\DemoOrgName}{Northstar Labs}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=aegisblue,
+  urlcolor=aegisaccent,
+  pdftitle={AegisWeb Demo Tester Guide},
+  pdfauthor={AegisWeb},
+  pdfsubject={How to explore the seeded AegisWeb demo}
+}
+
+\titleformat{\section}
+  {\Large\bfseries\color{aegisblue}}{\thesection}{0.75em}{}
+\titleformat{\subsection}
+  {\large\bfseries\color{aegisaccent}}{\thesubsection}{0.65em}{}
+
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0.4pt}
+\fancyhead[L]{\small\textcolor{aegisgray}{\ProductName\ Demo Guide}}
+\fancyhead[R]{\small\textcolor{aegisblue}{Seeded tester walkthrough}}
+\fancyfoot[C]{\small\textcolor{aegisblue}{\thepage}}
+
+\lstset{
+  basicstyle=\ttfamily\small,
+  backgroundcolor=\color{codebg},
+  frame=single,
+  rulecolor=\color{softborder},
+  breaklines=true,
+  columns=fullflexible,
+  keepspaces=true,
+  showstringspaces=false
+}
+
+\newtcolorbox{callout}[1][]{%
+  enhanced,
+  breakable,
+  colback=aegislight,
+  colframe=aegisblue,
+  boxrule=0.6pt,
+  arc=2pt,
+  left=8pt,right=8pt,top=6pt,bottom=6pt,
+  fonttitle=\bfseries\small,
+  title=#1
+}
+
+\newtcolorbox{warningbox}[1][Important]{%
+  enhanced,
+  breakable,
+  colback=white,
+  colframe=warnorange,
+  boxrule=0.8pt,
+  arc=2pt,
+  left=8pt,right=8pt,top=6pt,bottom=6pt,
+  fonttitle=\bfseries\small\color{warnorange},
+  title=#1
+}
+
+\newcommand{\ui}[1]{\textbf{#1}}
+\newcommand{\email}[1]{\texttt{#1}}
+
+\begin{document}
+
+% ── Cover ────────────────────────────────────────────────────
+\begin{titlepage}
+  \centering
+  \vspace*{1.2cm}
+  {\color{aegisblue}\rule{\textwidth}{1.6pt}}\\[0.6cm]
+  {\Huge\bfseries\color{aegisblue} \ProductName}\\[0.35cm]
+  {\Large\color{aegisaccent} Public Demo \& Seed Data Guide}\\[0.55cm]
+  {\color{aegisblue}\rule{\textwidth}{0.8pt}}\\[1.1cm]
+
+  {\large A practical walkthrough for testers exploring the\\
+  preloaded \textbf{\DemoOrgName} workspace}\\[1.4cm]
+
+  \begin{tcolorbox}[
+    colback=codebg,
+    colframe=softborder,
+    width=0.88\textwidth,
+    arc=2pt
+  ]
+    \centering
+    \textbf{Demo dashboard}\\[0.25em]
+    \url{\DemoAppUrl}\\[0.7em]
+    \small Shared password for all demo users:\\
+    \texttt{\DemoPassword}\\[0.55em]
+    \small Guide PDF mirror: \url{\DemoAppUrl/guide.pdf}
+  \end{tcolorbox}
+
+  \vfill
+  {\small\color{aegisgray}
+    This environment is intended for evaluation and demos.\\
+    Do not store real production credentials in the shared seed workspace.
+  }
+  \vspace{1cm}
+\end{titlepage}
+
+\pagenumbering{roman}
+\tableofcontents
+\newpage
+\pagenumbering{arabic}
+
+% ── 1. What you are testing ──────────────────────────────────
+\section{What is \ProductName?}
+
+\ProductName\ is a control plane for AI agents that act on vendor websites.
+Instead of giving an agent unmanaged access to billing portals, the platform:
+
+\begin{itemize}[leftmargin=1.2em]
+  \item assigns each agent an identity and purpose;
+  \item stores credentials in a vault and grants them selectively;
+  \item evaluates actions against policies;
+  \item pauses risky work for human approval;
+  \item records immutable audit events and evidence receipts.
+\end{itemize}
+
+This demo is already seeded with a realistic organization, agents, vendors,
+credentials, workflows, historical runs, one pending approval, receipts, and
+an audit hash chain---so you can explore the product without building data from
+scratch.
+
+\begin{callout}[Demo intent]
+  Treat this as a shared sandbox. Feel free to start runs, approve or reject
+  requests, and inspect receipts. Prefer the guided scenarios below so other
+  testers can still follow the happy path.
+\end{callout}
+
+\section{Quick access}
+
+\subsection{Demo URLs}
+
+\begin{tabularx}{\textwidth}{@{}l X@{}}
+  \toprule
+  \textbf{Surface} & \textbf{URL} \\
+  \midrule
+  Dashboard / login & \url{\DemoAppUrl} \\
+  API ready & \url{\DemoApiUrl/health/ready} \\
+  Vendor sandbox (Acme portals) & \url{\DemoSandboxUrl/} \\
+  Outbound mail viewer (Mailpit) & \url{\DemoMailUrl/} \\
+  \bottomrule
+\end{tabularx}
+
+\begin{callout}[Public demo topology]
+  This deployment is served over plain HTTP on the VPS IP. The Nest API is
+  published under the \texttt{/v1/} path so it does not collide with the Next.js
+  BFF routes at \texttt{/api/*}.
+\end{callout}
+
+\subsection{Demo accounts}
+
+All accounts share the password \texttt{\DemoPassword}.
+
+\begin{tabularx}{\textwidth}{@{}l l X@{}}
+  \toprule
+  \textbf{Role} & \textbf{Email} & \textbf{Best for} \\
+  \midrule
+  Owner & \email{founder@northstarlabs.dev} & Start runs, settings, billing, full control \\
+  Approver & \email{finance@northstarlabs.dev} & Approve / reject agent requests \\
+  Auditor & \email{auditor@northstarlabs.dev} & Read audit trail, receipts, compliance views \\
+  Developer & \email{dev@northstarlabs.dev} & Day-to-day agent and workflow setup \\
+  \bottomrule
+\end{tabularx}
+
+\begin{warningbox}[Shared demo etiquette]
+  \begin{itemize}[leftmargin=1.1em,itemsep=0.2em]
+    \item Do not change the shared password.
+    \item Do not paste real Stripe, GitHub, or payroll secrets into Credentials.
+    \item Prefer approving the live Acme downgrade you start yourself; leave the
+          seeded pending approval if others still want to review it.
+  \end{itemize}
+\end{warningbox}
+
+\section{Core concepts (2-minute glossary)}
+
+\begin{description}[style=nextline,leftmargin=1.4em,font=\bfseries\color{aegisblue}]
+  \item[Agent] A governed automation identity (for example \emph{Procurement Bot}).
+  \item[Vendor] A SaaS / web portal the agent may visit (Acme, Nimbus, Atlas,\ldots).
+  \item[Credential] Vault-stored login secret, granted only to selected agents.
+  \item[Policy] Rules that allow, deny, or require approval for actions/domains.
+  \item[Workflow] A reusable template binding agent + vendor + credential.
+  \item[Run] One execution of a workflow.
+  \item[Approval] Human decision when policy marks an action as risky.
+  \item[Receipt] Evidence package for a finished run (status, files, decisions).
+  \item[Audit] Append-only event log with hash-chain verification.
+\end{description}
+
+\section{Tour of the sidebar}
+
+After login you land in the control plane. Useful pages:
+
+\begin{tabularx}{\textwidth}{@{}l X@{}}
+  \toprule
+  \textbf{Page} & \textbf{What to look for} \\
+  \midrule
+  \ui{Home} & Active runs, pending approvals, recent receipts \\
+  \ui{Getting Started} & Orientation checklist for new workspaces \\
+  \ui{Agents} & Procurement Bot, Invoice Collector, paused/revoked examples \\
+  \ui{Policies} & Domain allowlists and approval requirements \\
+  \ui{Credentials} & Vault entries for sandbox vendors (secrets stay redacted) \\
+  \ui{Vendors} & Acme / Nimbus / Atlas / PayrollPro + typed Stripe \& GitHub rows \\
+  \ui{Workflows} & Invoice download, renewal check, plan downgrade templates \\
+  \ui{Runs} & Live and historical executions \\
+  \ui{Approvals} & Human decision queue \\
+  \ui{Receipts} & Evidence after completion / denial / failure \\
+  \ui{Audit} & Immutable events; export / verify chain \\
+  \ui{Settings} & Organization, security (MFA), billing \\
+  \bottomrule
+\end{tabularx}
+
+\section{What the seed already contains}
+
+Organization: \textbf{\DemoOrgName} (Business plan, billing email configured).
+
+\subsection{Agents}
+\begin{itemize}[leftmargin=1.2em]
+  \item \textbf{Procurement Bot} --- invoices, renewals, billing workflows (active)
+  \item \textbf{Invoice Collector} --- invoice downloads (active)
+  \item \textbf{Risky Admin Bot} --- paused example for denial testing
+  \item \textbf{Legacy Spend Bot} --- revoked historical agent
+\end{itemize}
+
+\subsection{Vendors \& workflows}
+\begin{itemize}[leftmargin=1.2em]
+  \item Sandbox vendors driven by the local vendor portal:
+        Acme Analytics, Nimbus Docs, Atlas CRM, PayrollPro.
+  \item Flagship workflows:
+        \textbf{Acme Invoice Download},
+        \textbf{Acme Renewal Check},
+        \textbf{Acme Downgrade Request},
+        plus Atlas / Payroll examples.
+  \item Phase-2 typed connectors: \textbf{Stripe Billing} and
+        \textbf{GitHub Organization} (placeholders only---do not expect live
+        portal success without real credentials).
+\end{itemize}
+
+\subsection{Historical evidence}
+The seed also includes completed, denied, and failed runs, receipts, and a
+pending Acme downgrade approval (expires about 7 days after seed time). Use
+these to explore UI states without waiting for a new run.
+
+\newpage
+\section{Scenario A --- Flagship approval path (recommended)}
+
+This is the best end-to-end demo of \ProductName.
+
+\begin{enumerate}[leftmargin=1.3em]
+  \item Open \url{\DemoAppUrl} and sign in as
+        \email{founder@northstarlabs.dev} / \texttt{\DemoPassword}.
+  \item Go to \ui{Runs} $\rightarrow$ \ui{Start workflow}
+        (or open \ui{Workflows} and start from there).
+  \item Choose \textbf{Acme Downgrade Request}.
+  \item Confirm the agent, vendor, and credential, then start the run.
+  \item Watch the run move to \textbf{Waiting for approval}.
+        The worker logs into the Acme sandbox, prepares a plan change, and
+        pauses because policy requires human approval.
+  \item Optional: open \url{\DemoMailUrl} and confirm an approval notification
+        was sent (if mail capture is enabled on this deployment).
+  \item Sign out, then sign in as
+        \email{finance@northstarlabs.dev}.
+  \item Open \ui{Approvals}, select the new request, review the summary and
+        screenshot, then click \ui{Approve} (or \ui{Reject} to see the denial path).
+  \item Switch back to the owner (or stay as finance if permitted) and open
+        \ui{Runs}: the run should resume and reach \textbf{Completed}.
+  \item Open \ui{Receipts} for screenshots / summary evidence, then \ui{Audit}
+        to inspect the event trail and verify the hash chain.
+\end{enumerate}
+
+\begin{callout}[Success criteria]
+  You should see: queued $\rightarrow$ running $\rightarrow$ waiting for approval
+  $\rightarrow$ (after approve) completed, plus a receipt and audit events for
+  approval and completion.
+\end{callout}
+
+\section{Scenario B --- Invoice download (no approval)}
+
+\begin{enumerate}[leftmargin=1.3em]
+  \item Sign in as the owner.
+  \item Start \textbf{Acme Invoice Download}.
+  \item Expect the run to finish as \textbf{Completed} without an approval pause.
+  \item Open the resulting \ui{Receipt} and confirm invoice / screenshot evidence.
+\end{enumerate}
+
+Useful for showing autonomous-but-governed work that stays within policy.
+
+\section{Scenario C --- Explore seeded history (no new runs)}
+
+If the worker is busy or you only want to browse:
+
+\begin{enumerate}[leftmargin=1.3em]
+  \item \ui{Approvals}: open the seeded pending Acme downgrade (if still pending).
+  \item \ui{Receipts}: compare completed vs denied receipts.
+  \item \ui{Audit}: filter by workflow run; try export / verify.
+  \item \ui{Agents}: note paused and revoked agents---status matters for execution.
+  \item \ui{Credentials}: confirm secrets are never shown in clear text in lists
+        or receipts.
+\end{enumerate}
+
+\section{Scenario D --- Billing checkout (optional)}
+
+If Stripe test mode is configured on the deployment:
+
+\begin{enumerate}[leftmargin=1.3em]
+  \item As owner, open \ui{Settings} $\rightarrow$ \ui{Billing}.
+  \item Start Checkout for Starter or Business.
+  \item Pay with Stripe test card \texttt{4242 4242 4242 4242}
+        (any future expiry, any CVC).
+  \item Return to the app and confirm subscription fields update
+        (requires working webhooks on the host).
+\end{enumerate}
+
+\begin{warningbox}[Stripe note]
+  Use \emph{test mode} only. Never enter a real payment card on the public demo.
+\end{warningbox}
+
+\section{Scenario E --- MFA / step-up (optional)}
+
+\begin{enumerate}[leftmargin=1.3em]
+  \item As owner, open \ui{Settings} $\rightarrow$ security / MFA.
+  \item Enroll TOTP with an authenticator app.
+  \item Log out and log in again with the TOTP code.
+  \item Attempt a sensitive action (org edit or credential create) and confirm
+        the step-up challenge appears.
+\end{enumerate}
+
+\begin{callout}[Courtesy]
+  If you enroll MFA on the shared founder account, leave recovery codes in a
+  place the demo operator can access, or remove MFA when finished so other
+  testers are not locked out.
+\end{callout}
+
+\section{Role cheat-sheet}
+
+\begin{tabularx}{\textwidth}{@{}l X X@{}}
+  \toprule
+  \textbf{Role} & \textbf{Try this} & \textbf{Expect} \\
+  \midrule
+  Owner & Start workflows, open Settings/Billing & Full control plane access \\
+  Approver & Decide pending approvals & Approve/reject with comments \\
+  Auditor & Audit export / verify, receipts & Strong read access, limited writes \\
+  Developer & Inspect agents, policies, workflows & Operational setup without org-owner powers \\
+  \bottomrule
+\end{tabularx}
+
+\section{Reading run states}
+
+\begin{tabularx}{\textwidth}{@{}l X@{}}
+  \toprule
+  \textbf{Status} & \textbf{Meaning} \\
+  \midrule
+  Queued & Accepted; waiting for the worker \\
+  Running & Browser automation in progress \\
+  Waiting for approval & Policy pause; human decision required \\
+  Completed & Finished successfully (receipt expected) \\
+  Failed & Error during execution (message on the run) \\
+  Denied & Blocked by policy or rejected approval \\
+  Cancelled & Stopped before completion \\
+  \bottomrule
+\end{tabularx}
+
+\section{Safety \& privacy}
+
+\begin{itemize}[leftmargin=1.2em]
+  \item Credentials in the vault are encrypted; UI and receipts redact secrets.
+  \item The Acme / Nimbus / Atlas / Payroll portals are a \textbf{vendor sandbox},
+        not real customer systems.
+  \item Stripe Billing and GitHub rows are typed connectors with placeholder
+        passwords---live execution against real sites is out of scope for casual
+        public testing.
+  \item Audit events are append-only; verifying the chain should succeed for the
+        seeded organization unless data was tampered with.
+\end{itemize}
+
+\section{Troubleshooting}
+
+\begin{description}[style=nextline,leftmargin=1.2em,font=\bfseries]
+  \item[Cannot log in]
+    Confirm you use a seeded email and \texttt{\DemoPassword}. Caps Lock and
+    autofill of an old password are common issues.
+  \item[Run stays queued]
+    The worker may be restarting or overloaded. Wait ~30\,s, refresh \ui{Runs},
+    then check with the demo operator if it remains queued.
+  \item[Run fails immediately]
+    Open the run detail for \texttt{errorMessage}. Typical causes: paused agent,
+    missing credential grant, or sandbox unavailable.
+  \item[No approval appears]
+    Confirm you started \textbf{Acme Downgrade Request} (invoice download does
+    not pause). Refresh \ui{Approvals} while signed in as finance.
+  \item[Approve does nothing]
+    Ensure you are \email{finance@northstarlabs.dev} (or another user with
+    approval permission). Owner accounts may be able to start runs but the demo
+    is designed around the finance approver for the happy path.
+  \item[HTTPS / certificate warning (local demos only)]
+    Local stacks using an internal CA may show a browser warning---use
+    Advanced $\rightarrow$ Proceed, or install the operator-provided root CA.
+\end{description}
+
+\section{Suggested 15-minute test script}
+
+\begin{enumerate}[leftmargin=1.3em]
+  \item Minute 0--2: log in as founder; skim \ui{Home}, \ui{Agents}, \ui{Vendors}.
+  \item Minute 2--6: run Scenario~B (invoice download) and open the receipt.
+  \item Minute 6--12: run Scenario~A through approval as finance.
+  \item Minute 12--15: as auditor, open \ui{Audit}, export or verify the chain.
+\end{enumerate}
+
+\section{Feedback}
+
+When reporting issues, please include:
+
+\begin{itemize}[leftmargin=1.2em]
+  \item the account role you used;
+  \item workflow name and approximate start time (UTC);
+  \item run / approval IDs from the URL if available;
+  \item screenshots of the failure (without secrets).
+\end{itemize}
+
+Thank you for testing \ProductName.
+
+\vspace{1.2em}
+{\small\color{aegisgray}
+  Document version: demo tester guide --- aligned with the Northstar Labs seed.\\
+  Replace the \texttt{\textbackslash Demo*Url} macros at the top of the \texttt{.tex}
+  source with your public deployment URLs before distributing the PDF.
+}
+
+\end{document}

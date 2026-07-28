@@ -1,10 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { AuditActorType, AuditEventType, Prisma } from '@prisma/client';
-import { DomainError, DomainErrorCode, VendorCategory, VENDOR_CATEGORIES } from '@agentpass/domain';
+import { DomainError, DomainErrorCode, VendorCategory, VENDOR_CATEGORIES, ConnectorType, CONNECTOR_TYPES } from '@agentpass/domain';
 import { AuditService } from '../audit/audit.service.js';
 import { PageQuery, pageToSkip, paginationMeta } from '../common/pagination.js';
 import { DatabaseService } from '../database/database.service.js';
 import { ContextUser } from '../request-context/types.js';
+import { toPrismaConnectorType } from './vendor-connector-type-mapping.js';
 import { toPrismaVendorCategory } from './vendor-category-mapping.js';
 import { VendorRiskProfileService } from './vendor-risk-profile.service.js';
 import { VendorUrlService } from './vendor-url.service.js';
@@ -14,6 +15,7 @@ export type CreateVendorInput = {
   name: string;
   website: string;
   category: VendorCategory;
+  connectorType?: ConnectorType;
   renewalDate?: string;
   monthlyCostCents?: number;
   ownerUserId?: string;
@@ -61,6 +63,9 @@ export class VendorsService {
     }
 
     this.assertKnownCategory(input.category);
+    if (input.connectorType) {
+      this.assertKnownConnectorType(input.connectorType);
+    }
     await this.assertOwnerInOrganization(currentUser.organizationId, input.ownerUserId);
 
     const website = this.urls.normalize(input.website);
@@ -72,6 +77,7 @@ export class VendorsService {
         name: input.name,
         website,
         category: toPrismaVendorCategory(input.category),
+        connectorType: input.connectorType ? toPrismaConnectorType(input.connectorType) : undefined,
         renewalDate: input.renewalDate ? new Date(input.renewalDate) : undefined,
         monthlyCostCents: input.monthlyCostCents,
         ownerUserId: input.ownerUserId,
@@ -99,6 +105,9 @@ export class VendorsService {
     if (input.category) {
       this.assertKnownCategory(input.category);
     }
+    if (input.connectorType) {
+      this.assertKnownConnectorType(input.connectorType);
+    }
 
     await this.assertOwnerInOrganization(currentUser.organizationId, input.ownerUserId);
 
@@ -114,6 +123,7 @@ export class VendorsService {
         name: input.name,
         website: nextWebsite,
         category: input.category ? toPrismaVendorCategory(input.category) : undefined,
+        connectorType: input.connectorType ? toPrismaConnectorType(input.connectorType) : undefined,
         renewalDate: input.renewalDate ? new Date(input.renewalDate) : undefined,
         monthlyCostCents: input.monthlyCostCents,
         ownerUserId: input.ownerUserId,
@@ -224,6 +234,12 @@ export class VendorsService {
   private assertKnownCategory(category: VendorCategory): void {
     if (!VENDOR_CATEGORIES.includes(category)) {
       throw new DomainError(DomainErrorCode.ValidationFailed, 'Vendor category must be known.');
+    }
+  }
+
+  private assertKnownConnectorType(connectorType: ConnectorType): void {
+    if (!CONNECTOR_TYPES.includes(connectorType)) {
+      throw new DomainError(DomainErrorCode.ValidationFailed, 'Vendor connector type must be known.');
     }
   }
 

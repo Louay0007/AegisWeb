@@ -206,6 +206,15 @@ function clearRefreshCookie(response: CookieResponse, nodeEnv: string): void {
 }
 
 function secureCookieSuffix(nodeEnv: string): string {
+  if (process.env.SESSION_COOKIE_SECURE === "false") {
+    return "";
+  }
+  if (process.env.SESSION_COOKIE_SECURE === "true") {
+    return "; Secure";
+  }
+  if (process.env.DASHBOARD_BASE_URL?.startsWith("http://")) {
+    return "";
+  }
   return nodeEnv === "production" ? "; Secure" : "";
 }
 

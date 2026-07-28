@@ -26,22 +26,27 @@ export function createRequestId() {
   return `req_${Date.now()}_${Math.random().toString(16).slice(2)}`;
 }
 
+export type ApiRequestOptions = {
+  retry?: boolean;
+  stepUpToken?: string;
+};
+
 export async function apiRequest<T>(
   path: string,
   init: RequestInit = {},
-  _options: { retry?: boolean } = {},
+  options: ApiRequestOptions = {},
 ): Promise<T> {
   const response = await fetch(`${apiBaseUrl()}${bffPath(path)}`, {
     ...init,
     credentials: "include",
-    headers: buildHeaders(init.headers, init.body),
+    headers: buildHeaders(init.headers, init.body, options.stepUpToken),
   });
 
   return readEnvelope<T>(response);
 }
 
-export async function apiGet<T>(path: string) {
-  return apiRequest<T>(path);
+export async function apiGet<T>(path: string, options: ApiRequestOptions = {}) {
+  return apiRequest<T>(path, {}, options);
 }
 
 export async function apiGetPaginated<T>(
@@ -73,22 +78,30 @@ export async function apiGetPaginated<T>(
   };
 }
 
-export async function apiPost<T>(path: string, body?: unknown) {
-  return apiRequest<T>(path, {
-    method: "POST",
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
+export async function apiPost<T>(path: string, body?: unknown, options: ApiRequestOptions = {}) {
+  return apiRequest<T>(
+    path,
+    {
+      method: "POST",
+      body: body === undefined ? undefined : JSON.stringify(body),
+    },
+    options,
+  );
 }
 
-export async function apiPatch<T>(path: string, body?: unknown) {
-  return apiRequest<T>(path, {
-    method: "PATCH",
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
+export async function apiPatch<T>(path: string, body?: unknown, options: ApiRequestOptions = {}) {
+  return apiRequest<T>(
+    path,
+    {
+      method: "PATCH",
+      body: body === undefined ? undefined : JSON.stringify(body),
+    },
+    options,
+  );
 }
 
-export async function apiDelete<T>(path: string) {
-  return apiRequest<T>(path, { method: "DELETE" });
+export async function apiDelete<T>(path: string, options: ApiRequestOptions = {}) {
+  return apiRequest<T>(path, { method: "DELETE" }, options);
 }
 
 export async function apiDownload(path: string) {
@@ -108,7 +121,11 @@ export async function apiDownload(path: string) {
   return { blob, filename };
 }
 
-function buildHeaders(input: HeadersInit | undefined, body?: BodyInit | null) {
+function buildHeaders(
+  input: HeadersInit | undefined,
+  body?: BodyInit | null,
+  stepUpToken?: string,
+) {
   const headers = new Headers(input);
 
   if (body !== undefined && body !== null && !headers.has("content-type")) {
@@ -117,6 +134,10 @@ function buildHeaders(input: HeadersInit | undefined, body?: BodyInit | null) {
 
   if (!headers.has("x-request-id")) {
     headers.set("x-request-id", createRequestId());
+  }
+
+  if (stepUpToken) {
+    headers.set("x-step-up-token", stepUpToken);
   }
 
   return headers;

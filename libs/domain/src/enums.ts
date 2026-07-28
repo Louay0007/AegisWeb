@@ -36,6 +36,14 @@ export const VendorCategory = {
 export type VendorCategory = (typeof VendorCategory)[keyof typeof VendorCategory];
 export const VENDOR_CATEGORIES = Object.values(VendorCategory);
 
+export const ConnectorType = {
+  Sandbox: 'sandbox',
+  StripeBilling: 'stripe_billing',
+  Github: 'github'
+} as const;
+export type ConnectorType = (typeof ConnectorType)[keyof typeof ConnectorType];
+export const CONNECTOR_TYPES = Object.values(ConnectorType);
+
 export const PolicyType = {
   WebsiteAllowlist: 'website_allowlist',
   ActionPermissions: 'action_permissions',

@@ -96,9 +96,15 @@ export class UsersService {
       }
     });
 
-    await this.sendInviteEmail(created.email, created.name, inviteToken);
+    const emailResult = await this.sendInviteEmail(created.email, created.name, inviteToken);
 
-    return { data: toUserDto(created) };
+    return {
+      data: {
+        ...toUserDto(created),
+        inviteEmailDelivered: emailResult.delivered,
+        inviteEmailWarning: emailResult.warning ?? null
+      }
+    };
   }
 
   async changeUserRole(currentUser: ContextUser | undefined, id: string, input: ChangeUserRoleInput) {
@@ -275,7 +281,11 @@ export class UsersService {
     return createHmac('sha256', this.config.config.jwtRefreshSecret).update(token).digest('hex');
   }
 
-  private async sendInviteEmail(email: string, name: string, token: string): Promise<void> {
+  private async sendInviteEmail(
+    email: string,
+    name: string,
+    token: string
+  ): Promise<{ delivered: boolean; warning?: string }> {
     const url = `${this.config.config.dashboardBaseUrl}/reset-password?token=${encodeURIComponent(token)}`;
     try {
       await this.emailAdapter.send({
@@ -285,8 +295,13 @@ export class UsersService {
         text: `Set your AegisWeb password and accept the invitation: ${url}`,
         html: `<p>Set your AegisWeb password and accept the invitation:</p><p><a href="${escapeHtml(url)}">Accept invitation</a></p>`
       });
-    } catch {
-      // Invites should remain visible in the product even if local SMTP is unavailable.
+      return { delivered: true };
+    } catch (error) {
+      // Keep the invite record even if SMTP is unavailable, but surface delivery failure.
+      return {
+        delivered: false,
+        warning: error instanceof Error ? error.message : 'Invitation email delivery failed.'
+      };
     }
   }
 }

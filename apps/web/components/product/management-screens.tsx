@@ -1315,6 +1315,22 @@ function VendorDialog({
           ["other", "Other"],
         ]}
       />
+      <SelectField
+        name="connectorType"
+        label="Connector"
+        defaultValue={vendor?.connectorType ?? "sandbox"}
+        options={[
+          ["sandbox", "Vendor sandbox"],
+          ["stripe_billing", "Stripe Billing"],
+          ["github", "GitHub"],
+        ]}
+      />
+      <Field
+        name="githubOrganization"
+        label="GitHub org (optional)"
+        defaultValue=""
+        required={false}
+      />
       <div className="grid gap-3 sm:grid-cols-3">
         <Field
           name="monthlyCost"
@@ -1505,9 +1521,18 @@ function CredentialDialog({
           autoComplete="new-password"
         />
       </div>
+      <Field
+        name="totpSecret"
+        label="TOTP secret (optional MFA)"
+        type="password"
+        defaultValue=""
+        placeholder="Base32 authenticator secret for vendor MFA"
+        required={false}
+        autoComplete="off"
+      />
       <p className="text-pretty text-xs leading-5 text-muted-foreground">
-        Write-only field. After submit, operators can rotate or revoke, never
-        reveal.
+        Write-only fields. After submit, operators can rotate or revoke, never
+        reveal. Include a TOTP secret when the vendor requires MFA.
       </p>
     </EntityDialog>
   );

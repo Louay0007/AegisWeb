@@ -8,9 +8,8 @@ import { UserPreferencesService } from './user-preferences.service.js';
 const updateNotificationPreferencesSchema = z.object({
   approvalRequests: z.boolean().optional(),
   runCompletions: z.boolean().optional(),
-  failures: z.boolean().optional(),
-  slackWebhookUrl: z.string().url().nullable().optional()
-});
+  failures: z.boolean().optional()
+}).strict();
 
 @Controller('user/preferences')
 export class UserPreferencesController {

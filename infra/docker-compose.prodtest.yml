@@ -1,0 +1,255 @@
+# Production-like local stack for AegisWeb.
+# Usage:
+#   1. Ensure .env.prodtest exists (pnpm prodtest:env)
+#   2. Add hosts (pnpm prodtest:hosts)
+#   3. pnpm prodtest:up
+#
+# Avoids host port clashes by keeping Postgres/Redis/MinIO internal-only.
+# Public entry is HTTPS via Caddy on :443 (and :80 for ACME/local).
+
+name: aegisweb-prodtest
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - prodtest-postgres:/var/lib/postgresql/data
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:8-alpine
+    restart: unless-stopped
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?REDIS_PASSWORD is required}"]
+    volumes:
+      - prodtest-redis:/data
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep PONG"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  minio:
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - prodtest-minio:/data
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  mailpit:
+    image: axllent/mailpit
+    restart: unless-stopped
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  migrate:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: api
+    restart: "no"
+    env_file: ../.env.prodtest
+    environment:
+      NODE_ENV: production
+      CI: "true"
+      COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"
+    # Bypass pnpm's runtime install/deps check (corepack may resolve a different pnpm).
+    command:
+      [
+        "sh",
+        "-c",
+        "./node_modules/.bin/prisma migrate deploy && ./node_modules/.bin/tsx libs/database/src/seed.ts"
+      ]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [internal]
+
+  api:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: api
+    restart: unless-stopped
+    env_file: ../.env.prodtest
+    environment:
+      NODE_ENV: production
+      API_PORT: 3001
+      CI: "true"
+      COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"
+    command: ["node", "dist/api/apps/api/src/main.js"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      mailpit:
+        condition: service_healthy
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3001/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  worker:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: worker
+    restart: unless-stopped
+    env_file: ../.env.prodtest
+    environment:
+      NODE_ENV: production
+      API_BASE_URL: http://api:3001
+      CI: "true"
+      COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"
+    command: ["node", "dist/worker/apps/worker/src/main.js"]
+    depends_on:
+      api:
+        condition: service_healthy
+      vendor-sandbox:
+        condition: service_healthy
+    networks: [internal]
+
+  vendor-sandbox:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: vendor-sandbox
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      VENDOR_SANDBOX_PORT: 4202
+      CI: "true"
+      COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"
+    command: ["./node_modules/.bin/tsx", "apps/vendor-sandbox/src/main.ts"]
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:4202/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  web:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: web
+      args:
+        # Hardcoded so a developer shell .env (localhost) cannot override compose interpolation.
+        NEXT_PUBLIC_API_URL: https://api.aegisweb.local
+        NEXT_PUBLIC_ENABLE_DEMO_MODE: "false"
+        NEXT_PUBLIC_ENABLE_FIXTURE_FALLBACK: "false"
+        NEXT_PUBLIC_ALLOW_LOCAL_API_URL: "false"
+    restart: unless-stopped
+    env_file: ../.env.prodtest
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: https://api.aegisweb.local
+      NEXT_PUBLIC_ENABLE_DEMO_MODE: "false"
+      NEXT_PUBLIC_ENABLE_FIXTURE_FALLBACK: "false"
+      NEXT_PUBLIC_ALLOW_LOCAL_API_URL: "false"
+      API_BASE_URL: http://api:3001
+      CI: "true"
+      COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"
+    command: ["sh", "-c", "cd apps/web && ./node_modules/.bin/next start"]
+    depends_on:
+      api:
+        condition: service_healthy
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3000/login').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  caddy:
+    image: caddy:2.9-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile.prodtest:/etc/caddy/Caddyfile:ro
+      - prodtest-caddy-data:/data
+      - prodtest-caddy-config:/config
+    depends_on:
+      api:
+        condition: service_healthy
+      web:
+        condition: service_healthy
+      vendor-sandbox:
+        condition: service_healthy
+      mailpit:
+        condition: service_healthy
+    networks: [internal]
+
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    restart: unless-stopped
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prodtest-prometheus:/prometheus
+    depends_on:
+      api:
+        condition: service_healthy
+    networks: [internal]
+
+  grafana:
+    image: grafana/grafana:11.4.0
+    restart: unless-stopped
+    env_file: ../.env.prodtest
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-changeme-prodtest}
+      GF_SERVER_ROOT_URL: https://grafana.aegisweb.local
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+    volumes:
+      - prodtest-grafana:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      prometheus:
+        condition: service_started
+    networks: [internal]
+
+networks:
+  internal:
+
+volumes:
+  prodtest-postgres:
+  prodtest-redis:
+  prodtest-minio:
+  prodtest-caddy-data:
+  prodtest-caddy-config:
+  prodtest-prometheus:
+  prodtest-grafana:

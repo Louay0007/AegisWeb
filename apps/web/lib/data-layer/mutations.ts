@@ -150,8 +150,17 @@ export function useDeleteVendor(options: DashboardMutationOptions<unknown, strin
 
 // -- Credential mutations --------------------------------------------------
 
-export function useCreateCredential(options: DashboardMutationOptions<unknown, FormValues>) {
-  return useDashboardMutationInternal((values) => resourceApi.credentials.create(normalizeCredentialPayload(values)), { invalidate: "credentials", ...options });
+export function useCreateCredential(
+  options: DashboardMutationOptions<unknown, { values: FormValues; stepUpToken?: string } | FormValues>,
+) {
+  return useDashboardMutationInternal(
+    (input) => {
+      const values = isFormValues(input) ? input : input.values;
+      const stepUpToken = isFormValues(input) ? undefined : input.stepUpToken;
+      return resourceApi.credentials.create(normalizeCredentialPayload(values), { stepUpToken });
+    },
+    { invalidate: "credentials", ...options },
+  );
 }
 
 export function useGrantCredential(options: DashboardMutationOptions<unknown, { id: string; values: FormValues }>) {
@@ -178,9 +187,15 @@ export function useCreatePolicy(options: DashboardMutationOptions<unknown, FormV
   return useDashboardMutationInternal((values) => resourceApi.policies.create(normalizePolicyCreatePayload(values)), { invalidate: "policies", ...options });
 }
 
-export function useUpdatePolicy(options: DashboardMutationOptions<unknown, { id: string; values: Record<string, unknown> }>) {
+export function useUpdatePolicy(
+  options: DashboardMutationOptions<
+    unknown,
+    { id: string; values: Record<string, unknown>; stepUpToken?: string }
+  >,
+) {
   return useDashboardMutationInternal(
-    ({ id, values }) => resourceApi.policies.update(id, normalizePolicyUpdatePayload(values)),
+    ({ id, values, stepUpToken }) =>
+      resourceApi.policies.update(id, normalizePolicyUpdatePayload(values), { stepUpToken }),
     { invalidate: "policies", ...options },
   );
 }
@@ -231,23 +246,37 @@ export function useRejectRequest(options: DashboardMutationOptions<unknown, { id
   );
 }
 
+function isFormValues(
+  input: FormValues | { values: FormValues; stepUpToken?: string },
+): input is FormValues {
+  return !("values" in input);
+}
+
 function normalizeVendorPayload(values: FormValues): ApiObject {
   const payload: ApiObject = {
     name: values.name,
     website: values.website,
     category: values.category,
+    connectorType: values.connectorType || "sandbox",
   };
   if (values.renewalDate) payload.renewalDate = values.renewalDate;
   if (values.monthlyCost) payload.monthlyCostCents = dollarsToCents(values.monthlyCost);
-  if (values.unusedSeats) payload.metadataJson = { unusedSeats: Number(values.unusedSeats) };
+  const metadata: ApiObject = {};
+  if (values.unusedSeats) metadata.unusedSeats = Number(values.unusedSeats);
+  if (values.githubOrganization) metadata.githubOrganization = values.githubOrganization;
+  if (values.targetPlan) metadata.targetPlan = values.targetPlan;
+  if (Object.keys(metadata).length > 0) payload.metadataJson = metadata;
   return compact(payload);
 }
 
 function normalizeCredentialPayload(values: FormValues): ApiObject {
-  const secretJson =
+  const secretJson: ApiObject =
     values.credentialType === "username_password"
       ? { username: values.username, password: values.password }
       : { value: values.password };
+  if (values.totpSecret) {
+    secretJson.totpSecret = values.totpSecret;
+  }
   return compact({
     vendorId: values.vendorId,
     label: values.label,

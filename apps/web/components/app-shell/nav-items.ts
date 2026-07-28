@@ -1,32 +1,44 @@
+import type { LucideIcon } from "lucide-react";
 import {
-  Building,
-  CheckCircle,
-  DashboardDots,
-  GitBranch,
-  Key,
-  Page,
-  Book,
-  SettingsProfiles,
+  BadgeCheck,
+  Bot,
+  Building2,
+  CircleHelp,
   Compass,
+  FileText,
+  Home,
+  KeyRound,
+  ListChecks,
+  ScrollText,
+  Settings2,
   ShieldCheck,
-  TaskList,
-  UserBadgeCheck,
-} from "iconoir-react";
+  Workflow,
+} from "lucide-react";
 
-export const appNavItems = [
-  { label: "Home", href: "/app/home", icon: DashboardDots },
+export type AppNavItem = {
+  label: string;
+  href: string;
+  icon: LucideIcon;
+};
+
+/**
+ * SF Symbols–style Lucide set: one icon per destination, matched to the label meaning.
+ * Keep stroke at ~1.75 in the nav for an iOS weight.
+ */
+export const appNavItems: AppNavItem[] = [
+  { label: "Home", href: "/app/home", icon: Home },
   { label: "Getting Started", href: "/app/getting-started", icon: Compass },
-  { label: "Agents", href: "/app/agents", icon: UserBadgeCheck },
+  { label: "Agents", href: "/app/agents", icon: Bot },
   { label: "Policies", href: "/app/policies", icon: ShieldCheck },
-  { label: "Credentials", href: "/app/credentials", icon: Key },
-  { label: "Vendors", href: "/app/vendors", icon: Building },
-  { label: "Workflows", href: "/app/workflows", icon: GitBranch },
-  { label: "Runs", href: "/app/runs", icon: TaskList },
-  { label: "Approvals", href: "/app/approvals", icon: CheckCircle },
-  { label: "Receipts", href: "/app/receipts", icon: Page },
-  { label: "Audit", href: "/app/audit", icon: TaskList },
-  { label: "Help", href: "/app/help", icon: Book },
-  { label: "Settings", href: "/app/settings", icon: SettingsProfiles },
+  { label: "Credentials", href: "/app/credentials", icon: KeyRound },
+  { label: "Vendors", href: "/app/vendors", icon: Building2 },
+  { label: "Workflows", href: "/app/workflows", icon: Workflow },
+  { label: "Runs", href: "/app/runs", icon: ListChecks },
+  { label: "Approvals", href: "/app/approvals", icon: BadgeCheck },
+  { label: "Receipts", href: "/app/receipts", icon: FileText },
+  { label: "Audit", href: "/app/audit", icon: ScrollText },
+  { label: "Help", href: "/app/help", icon: CircleHelp },
+  { label: "Settings", href: "/app/settings", icon: Settings2 },
 ];
 
 export function pageTitleForPath(pathname: string) {

@@ -57,9 +57,12 @@ describe('phase 1 database and seed data', () => {
     expect(organization.name).toBe('Northstar Labs');
     expect(organization.users).toHaveLength(4);
     expect(organization.agents).toHaveLength(4);
-    expect(organization.vendors).toHaveLength(4);
+    expect(organization.vendors).toHaveLength(6);
+    expect(organization.vendors.map((vendor) => vendor.connectorType)).toEqual(
+      expect.arrayContaining(['SANDBOX', 'STRIPE_BILLING', 'GITHUB'])
+    );
     expect(organization.policies).toHaveLength(2);
-    expect(organization.credentials).toHaveLength(4);
+    expect(organization.credentials).toHaveLength(6);
     expect(organization.workflows).toHaveLength(5);
     expect(organization.workflowRuns.length).toBeGreaterThanOrEqual(9);
     expect(organization.approvalRequests).toHaveLength(4);

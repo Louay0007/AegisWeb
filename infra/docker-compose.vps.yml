@@ -1,0 +1,207 @@
+# AegisWeb VPS demo stack (HTTP IP front door via host nginx).
+# Usage on the server:
+#   docker compose --env-file .env.vps -f infra/docker-compose.vps.yml up -d --build
+
+name: aegisweb-vps
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - vps-postgres:/var/lib/postgresql/data
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:8-alpine
+    restart: unless-stopped
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?REDIS_PASSWORD is required}"]
+    volumes:
+      - vps-redis:/data
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep PONG"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  minio:
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - vps-minio:/data
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  mailpit:
+    image: axllent/mailpit
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8025:8025"
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  migrate:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: api
+    restart: "no"
+    env_file: ../.env.vps
+    environment:
+      NODE_ENV: production
+      CI: "true"
+      COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"
+    command:
+      [
+        "sh",
+        "-c",
+        "./node_modules/.bin/prisma migrate deploy && ./node_modules/.bin/tsx libs/database/src/seed.ts"
+      ]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [internal]
+
+  api:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: api
+    restart: unless-stopped
+    env_file: ../.env.vps
+    environment:
+      NODE_ENV: production
+      API_PORT: 3001
+      CI: "true"
+      COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"
+      SESSION_COOKIE_SECURE: "false"
+      API_TRUSTED_PROXIES: "172.16.0.0/12,10.0.0.0/8,192.168.0.0/16,127.0.0.1"
+    command: ["node", "dist/api/apps/api/src/main.js"]
+    ports:
+      - "127.0.0.1:3001:3001"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      mailpit:
+        condition: service_healthy
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3001/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  worker:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: worker
+    restart: unless-stopped
+    env_file: ../.env.vps
+    environment:
+      NODE_ENV: production
+      API_BASE_URL: http://api:3001
+      CI: "true"
+      COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"
+      ALLOW_LOCAL_PRODUCTION_DEPENDENCIES: "true"
+    command: ["node", "dist/worker/apps/worker/src/main.js"]
+    depends_on:
+      api:
+        condition: service_healthy
+      vendor-sandbox:
+        condition: service_healthy
+    networks: [internal]
+
+  vendor-sandbox:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: vendor-sandbox
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      VENDOR_SANDBOX_PORT: 4202
+      CI: "true"
+      COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"
+    command: ["./node_modules/.bin/tsx", "apps/vendor-sandbox/src/main.ts"]
+    ports:
+      - "127.0.0.1:4202:4202"
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:4202/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  web:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: web
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+        NEXT_PUBLIC_ENABLE_DEMO_MODE: "false"
+        NEXT_PUBLIC_ENABLE_FIXTURE_FALLBACK: "false"
+        NEXT_PUBLIC_ALLOW_LOCAL_API_URL: "true"
+        ALLOW_HTTP_PUBLIC_API_URL: "true"
+    restart: unless-stopped
+    env_file: ../.env.vps
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+      NEXT_PUBLIC_ENABLE_DEMO_MODE: "false"
+      NEXT_PUBLIC_ENABLE_FIXTURE_FALLBACK: "false"
+      NEXT_PUBLIC_ALLOW_LOCAL_API_URL: "true"
+      API_BASE_URL: http://api:3001
+      DASHBOARD_BASE_URL: ${DASHBOARD_BASE_URL}
+      SESSION_COOKIE_SECURE: "false"
+      CI: "true"
+      COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"
+    command: ["sh", "-c", "cd apps/web && ./node_modules/.bin/next start"]
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3000/login').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+networks:
+  internal:
+
+volumes:
+  vps-postgres:
+  vps-redis:
+  vps-minio:

@@ -9,7 +9,10 @@ export const DomainErrorCode = {
   CredentialUnavailable: 'CREDENTIAL_UNAVAILABLE',
   WorkflowInvalidTransition: 'WORKFLOW_INVALID_TRANSITION',
   SecretLeakDetected: 'SECRET_LEAK_DETECTED',
-  RateLimited: 'RATE_LIMITED'
+  RateLimited: 'RATE_LIMITED',
+  ManualMfaRequired: 'MANUAL_MFA_REQUIRED',
+  UnsupportedConnectorCapability: 'UNSUPPORTED_CONNECTOR_CAPABILITY',
+  VendorPageStructureChanged: 'VENDOR_PAGE_STRUCTURE_CHANGED'
 } as const;
 
 export type DomainErrorCode = (typeof DomainErrorCode)[keyof typeof DomainErrorCode];

@@ -1,4 +1,5 @@
 import { Prisma, Vendor } from '@prisma/client';
+import { fromPrismaConnectorType } from './vendor-connector-type-mapping.js';
 import { fromPrismaVendorCategory } from './vendor-category-mapping.js';
 
 export type VendorRiskProfile = {
@@ -12,6 +13,7 @@ export type VendorDto = {
   name: string;
   website: string;
   category: string;
+  connectorType: string;
   renewalDate: string | null;
   monthlyCostCents: number | null;
   ownerUserId: string | null;
@@ -29,6 +31,7 @@ export function toVendorDto(vendor: Vendor, riskProfile: VendorRiskProfile): Ven
     name: vendor.name,
     website: vendor.website,
     category: fromPrismaVendorCategory(vendor.category),
+    connectorType: fromPrismaConnectorType(vendor.connectorType),
     renewalDate: vendor.renewalDate?.toISOString().slice(0, 10) ?? null,
     monthlyCostCents: vendor.monthlyCostCents,
     ownerUserId: vendor.ownerUserId,

@@ -1095,7 +1095,7 @@ Let a company safely run an AI agent that logs into a SaaS vendor portal, downlo
 - Controlled Playwright browser session.
 - Invoice download workflow.
 - Renewal check workflow.
-- Slack approval.
+- Dashboard and email approval.
 - Receipt page.
 - Audit log.
 

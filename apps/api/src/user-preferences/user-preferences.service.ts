@@ -7,21 +7,18 @@ export type UpdateNotificationPreferencesInput = {
   approvalRequests?: boolean;
   runCompletions?: boolean;
   failures?: boolean;
-  slackWebhookUrl?: string | null;
 };
 
 export type NotificationPreferencesDto = {
   approvalRequests: boolean;
   runCompletions: boolean;
   failures: boolean;
-  slackWebhookUrl: string | null;
 };
 
 const DEFAULT_PREFERENCES: NotificationPreferencesDto = {
   approvalRequests: true,
   runCompletions: false,
-  failures: true,
-  slackWebhookUrl: null
+  failures: true
 };
 
 @Injectable()
@@ -45,10 +42,13 @@ export class UserPreferencesService {
         userId: user.id,
         approvalRequests: input.approvalRequests ?? DEFAULT_PREFERENCES.approvalRequests,
         runCompletions: input.runCompletions ?? DEFAULT_PREFERENCES.runCompletions,
-        failures: input.failures ?? DEFAULT_PREFERENCES.failures,
-        slackWebhookUrl: input.slackWebhookUrl ?? null
+        failures: input.failures ?? DEFAULT_PREFERENCES.failures
       },
-      update: input
+      update: {
+        ...(input.approvalRequests === undefined ? {} : { approvalRequests: input.approvalRequests }),
+        ...(input.runCompletions === undefined ? {} : { runCompletions: input.runCompletions }),
+        ...(input.failures === undefined ? {} : { failures: input.failures })
+      }
     });
 
     return { data: toDto(prefs) };
@@ -66,12 +66,10 @@ function toDto(prefs: {
   approvalRequests: boolean;
   runCompletions: boolean;
   failures: boolean;
-  slackWebhookUrl: string | null;
 }): NotificationPreferencesDto {
   return {
     approvalRequests: prefs.approvalRequests,
     runCompletions: prefs.runCompletions,
-    failures: prefs.failures,
-    slackWebhookUrl: prefs.slackWebhookUrl
+    failures: prefs.failures
   };
 }

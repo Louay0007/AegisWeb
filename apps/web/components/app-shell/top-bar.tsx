@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { Bell, LogOut, Refresh, User } from "iconoir-react";
+import { Bell, LogOut, RefreshCw, User } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { DashboardGlobalSearch } from "@/components/dashboard/dashboard-global-search";
@@ -18,8 +18,12 @@ import {
 import { type AuthSession, useAuthSession } from "@/lib/auth/auth-session";
 import { approvals as approvalsFixture } from "@/lib/fixtures/dashboard";
 import { pickItems, useApprovals } from "@/lib/data-layer";
+import { cn } from "@/lib/utils";
 import { MobileNav } from "./mobile-nav";
 import { pageTitleForPath } from "./nav-items";
+
+const chromeIconButtonClass =
+  "size-10 dark:border-white/25 dark:bg-white/5 dark:text-white dark:hover:bg-white/10 dark:hover:text-white";
 
 type TopBarProps = {
   session: AuthSession | null;
@@ -68,27 +72,28 @@ export function TopBar({ session }: TopBarProps) {
           <Button
             variant="outline"
             size="icon"
-            className="size-10"
+            className={chromeIconButtonClass}
             aria-label="Refresh current page"
             onClick={() => router.refresh()}
           >
-            <Refresh className="size-4" strokeWidth={1.8} />
+            <RefreshCw className="size-[1.125rem]" strokeWidth={1.75} />
           </Button>
           <Button
             asChild
             variant="outline"
-            className="hidden h-10 gap-2 px-3 sm:inline-flex"
+            className={cn(
+              "hidden h-10 gap-2 px-3 sm:inline-flex",
+              "dark:border-white/25 dark:bg-white/5 dark:text-white dark:hover:bg-white/10 dark:hover:text-white",
+            )}
             aria-label="Pending approvals"
           >
             <a href="/app/approvals">
-              <Bell className="size-4" strokeWidth={1.8} />
-              <span className="text-sm tabular-nums">
-                {pendingApprovalCount}
-              </span>
+              <Bell className="size-[1.125rem]" strokeWidth={1.75} />
+              <span className="text-sm tabular-nums">{pendingApprovalCount}</span>
             </a>
           </Button>
           {session?.mode === "demo" ? (
-            <span className="hidden rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800 sm:inline-flex">
+            <span className="hidden rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-100 sm:inline-flex">
               Demo data
             </span>
           ) : null}
@@ -97,11 +102,14 @@ export function TopBar({ session }: TopBarProps) {
             <DropdownMenuTrigger asChild>
               <Button
                 variant="outline"
-                className="h-10 gap-2 px-2.5 pr-3"
+                className={cn(
+                  "h-10 gap-2 px-2.5 pr-3",
+                  "dark:border-white/25 dark:bg-white/5 dark:text-white dark:hover:bg-white/10 dark:hover:text-white",
+                )}
                 aria-label="Open user menu"
               >
-                <span className="inline-flex size-7 items-center justify-center rounded-md bg-foreground text-xs font-semibold text-background">
-                  {initials ? initials : <User className="size-4" strokeWidth={1.8} />}
+                <span className="inline-flex size-7 items-center justify-center rounded-lg bg-foreground text-xs font-semibold text-background dark:bg-white dark:text-black">
+                  {initials ? initials : <User className="size-4" strokeWidth={1.75} />}
                 </span>
                 <span className="hidden max-w-32 truncate text-sm md:inline">
                   {session?.user.name ?? "Guest"}
@@ -119,12 +127,12 @@ export function TopBar({ session }: TopBarProps) {
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem disabled>
-                <User className="size-4" strokeWidth={1.8} />
+                <User className="size-4" strokeWidth={1.75} />
                 {session?.user.role ?? "Anonymous"}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={signOut} variant="destructive">
-                <LogOut className="size-4" strokeWidth={1.8} />
+                <LogOut className="size-4" strokeWidth={1.75} />
                 Sign out
               </DropdownMenuItem>
             </DropdownMenuContent>

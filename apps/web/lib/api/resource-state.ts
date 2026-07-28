@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { ApiError, isApiError } from "@/lib/api/api-errors";
 import { useAuthSession } from "@/lib/auth/auth-session";
@@ -37,7 +37,8 @@ export function useApiResource<T>(
 ) {
   const { state: sessionState } = useAuthSession();
   const [state, setState] = useState<ResourceState<T>>({ status: "loading" });
-  const canUseApi = enabled && sessionState.status === "authenticated";
+  const isAuthenticated = sessionState.status === "authenticated";
+  const canUseApi = enabled && isAuthenticated;
   const fixtureFallbackEnabled = isFixtureFallbackEnabled();
   const shouldUseFixture =
     fixtureFallbackEnabled &&
@@ -45,35 +46,58 @@ export function useApiResource<T>(
       sessionState.status === "demo" ||
       sessionState.status === "unauthenticated");
 
+  // Callers often pass inline async functions. Keep the latest fetcher in a ref so
+  // identity churn does not retrigger loads (which caused request storms).
+  const fetcherRef = useRef(fetcher);
+  fetcherRef.current = fetcher;
+  const isEmptyRef = useRef(isEmpty);
+  isEmptyRef.current = isEmpty;
+  const fallbackDataRef = useRef(fallbackData);
+  fallbackDataRef.current = fallbackData;
+
   const load = useCallback(async () => {
+    if (!enabled) {
+      setState({ status: "loading" });
+      return;
+    }
+
     if (shouldUseFixture) {
+      const fallback = fallbackDataRef.current;
       setState(
-        isEmpty(fallbackData)
-          ? { status: "empty", data: fallbackData, source: "fixture" }
-          : { status: "success", data: fallbackData, source: "fixture" },
+        isEmptyRef.current(fallback)
+          ? { status: "empty", data: fallback, source: "fixture" }
+          : { status: "success", data: fallback, source: "fixture" },
       );
       return;
     }
 
-    if (!canUseApi) {
+    if (!isAuthenticated) {
       setState({
         status: "error",
         error: new ApiError({
           code: "AUTH_REQUIRED",
           message: "Authentication is required to load this resource.",
         }),
-        fallbackData,
+        fallbackData: fallbackDataRef.current,
       });
       return;
     }
 
     try {
-      const data = await fetcher();
-      setState(
-        isEmpty(data)
-          ? { status: "empty", data, source: "api" }
-          : { status: "success", data, source: "api" },
-      );
+      const data = await fetcherRef.current();
+      setState((previous) => {
+        const next = isEmptyRef.current(data)
+          ? ({ status: "empty", data, source: "api" } as const)
+          : ({ status: "success", data, source: "api" } as const);
+        if (
+          previous.status === next.status &&
+          previous.source === next.source &&
+          previous.data === next.data
+        ) {
+          return previous;
+        }
+        return next;
+      });
     } catch (error) {
       setState({
         status: "error",
@@ -86,16 +110,10 @@ export function useApiResource<T>(
                   ? error.message
                   : "Could not load resource.",
             }),
-        fallbackData,
+        fallbackData: fallbackDataRef.current,
       });
     }
-  }, [
-    canUseApi,
-    fallbackData,
-    fetcher,
-    isEmpty,
-    shouldUseFixture,
-  ]);
+  }, [enabled, isAuthenticated, shouldUseFixture]);
 
   useEffect(() => {
     void key;

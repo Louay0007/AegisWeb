@@ -60,7 +60,7 @@ export function StartWorkflowFlow({ trigger }: { trigger?: React.ReactNode }) {
   const agentsResource = useApiResource(
     "start-agents",
     async () => (await apiGet<AgentDto[]>("/agents")).map(mapAgent),
-    { fallbackData: agents },
+    { fallbackData: agents, enabled: open },
   );
   const agentItems =
     agentsResource.state.status === "success" ||
@@ -72,7 +72,7 @@ export function StartWorkflowFlow({ trigger }: { trigger?: React.ReactNode }) {
   const vendorsResource = useApiResource(
     "start-vendors",
     async () => (await apiGet<VendorDto[]>("/vendors")).map(mapVendor),
-    { fallbackData: vendors },
+    { fallbackData: vendors, enabled: open },
   );
   const vendorItems =
     vendorsResource.state.status === "success" ||
@@ -87,7 +87,7 @@ export function StartWorkflowFlow({ trigger }: { trigger?: React.ReactNode }) {
       (await apiGet<CredentialDto[]>("/credentials")).map((credential) =>
         mapCredential(credential, vendorItems, agentItems),
       ),
-    { fallbackData: credentials },
+    { fallbackData: credentials, enabled: open },
   );
   const credentialItems =
     credentialsResource.state.status === "success" ||
@@ -102,7 +102,7 @@ export function StartWorkflowFlow({ trigger }: { trigger?: React.ReactNode }) {
       (await apiGet<PolicyDto[]>("/policies")).map((policy) =>
         mapPolicy(policy, agentItems),
       ),
-    { fallbackData: policies },
+    { fallbackData: policies, enabled: open },
   );
   const policyItems =
     policiesResource.state.status === "success" ||
@@ -117,7 +117,7 @@ export function StartWorkflowFlow({ trigger }: { trigger?: React.ReactNode }) {
       (await apiGet<WorkflowDto[]>("/workflows")).map((item) =>
         mapWorkflow(item, agentItems, vendorItems),
       ),
-    { fallbackData: workflows },
+    { fallbackData: workflows, enabled: open },
   );
   const workflowItems =
     workflowsResource.state.status === "success" ||

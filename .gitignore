@@ -3,6 +3,7 @@ dist/
 coverage/
 .env
 .env.local
+.env.prodtest
 .env.*.local
 *.log
 tmp/
@@ -12,3 +13,4 @@ test-results/
 .playwright-cli/
 output/
 *.tsbuildinfo
+.env.vps

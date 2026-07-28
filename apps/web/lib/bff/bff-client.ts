@@ -18,7 +18,12 @@ type AuthData = {
 const REFRESH_COOKIE_NAME = "agentpass_refresh_token";
 
 export function apiBaseUrl(): string {
-  return (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001").replace(/\/$/, "");
+  // Server-side BFF must use the internal API URL in Docker/production.
+  // NEXT_PUBLIC_API_URL is the browser-facing HTTPS origin and may not resolve in-cluster.
+  return (process.env.API_BASE_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001").replace(
+    /\/$/,
+    "",
+  );
 }
 
 export async function apiFetch(path: string, init: RequestInit = {}, accessToken?: string): Promise<Response> {

@@ -32,7 +32,10 @@ import {
 } from "@/components/product/management-screens";
 import { ReceiptDetailScreen } from "@/components/product/receipt-detail-screen";
 import { WorkflowRunDetailScreen } from "@/components/product/workflow-run-detail-screen";
+import { useStepUp } from "@/hooks/use-step-up";
 import { errorMessage } from "@/lib/api/api-errors";
+import { resourceApi } from "@/lib/data-layer";
+import { toast } from "sonner";
 import {
   useAgents,
   useAgent,
@@ -581,6 +584,7 @@ export function CredentialsPage() {
   const agentsResource = useAgents();
   const vendorsResource = useVendors();
   const permissions = useManagementPermissions();
+  const { requestStepUp, dialog: stepUpDialog } = useStepUp();
   const createCredential = useCreateCredential({
     messages: { success: "Credential created." },
   });
@@ -607,7 +611,8 @@ export function CredentialsPage() {
     ),
     permissions: permissions.credentials,
     onCreateCredential: async (values: Record<string, string>) => {
-      await createCredential.mutateAsync(values);
+      const stepUpToken = await requestStepUp();
+      await createCredential.mutateAsync({ values, stepUpToken });
     },
     onGrantCredential: async (
       credentialId: string,
@@ -621,6 +626,7 @@ export function CredentialsPage() {
   };
   return (
     <div className="space-y-4">
+      {stepUpDialog}
       <ResourceNotice
         source={
           credentialsResource.state.status === "success" ||
@@ -831,6 +837,7 @@ export function PoliciesPage() {
 
 export function PolicyDetailPage({ id }: { id: string }) {
   const permissions = useManagementPermissions();
+  const { requestStepUp, dialog: stepUpDialog } = useStepUp();
   const updatePolicy = useUpdatePolicy({
     messages: { success: "Policy updated." },
   });
@@ -878,7 +885,8 @@ export function PolicyDetailPage({ id }: { id: string }) {
       policyId: string,
       values: Record<string, unknown>,
     ) => {
-      await updatePolicy.mutateAsync({ id: policyId, values });
+      const stepUpToken = await requestStepUp();
+      await updatePolicy.mutateAsync({ id: policyId, values, stepUpToken });
     },
     onEvaluatePolicy: async (
       policyId: string,
@@ -889,6 +897,7 @@ export function PolicyDetailPage({ id }: { id: string }) {
   };
   return (
     <div className="space-y-4">
+      {stepUpDialog}
       <ResourceNotice
         source={resourceSource(policyResource)}
       />
@@ -1515,6 +1524,13 @@ export function AuditPage() {
   const limit = 50;
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [verifyStatus, setVerifyStatus] = useState<{
+    valid: boolean;
+    checked: number;
+    firstBrokenEventId: string | null;
+  } | null>(null);
+  const [verifyBusy, setVerifyBusy] = useState(false);
+  const [exportBusy, setExportBusy] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -1582,13 +1598,85 @@ export function AuditPage() {
     },
   ];
 
+  async function exportAudit() {
+    setExportBusy(true);
+    try {
+      const { blob, filename } = await resourceApi.audit.export();
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = filename;
+      anchor.click();
+      URL.revokeObjectURL(url);
+      toast.success("Audit export downloaded.");
+    } catch (error) {
+      toast.error(errorMessage(error));
+    } finally {
+      setExportBusy(false);
+    }
+  }
+
+  async function verifyChain() {
+    setVerifyBusy(true);
+    try {
+      const result = await resourceApi.audit.verify();
+      setVerifyStatus(result);
+      toast.success(
+        result.valid
+          ? `Audit chain verified (${result.checked} events).`
+          : `Audit chain broken at ${result.firstBrokenEventId ?? "unknown event"}.`,
+      );
+    } catch (error) {
+      toast.error(errorMessage(error));
+    } finally {
+      setVerifyBusy(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
         eyebrow="Audit trail"
         title="Audit"
         description="Searchable technical event history with secret-safe payload inspection."
+        actions={
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={verifyBusy}
+              onClick={() => void verifyChain()}
+            >
+              {verifyBusy ? "Verifying..." : "Verify hash chain"}
+            </Button>
+            <Button
+              type="button"
+              disabled={exportBusy}
+              onClick={() => void exportAudit()}
+            >
+              {exportBusy ? "Exporting..." : "Export JSON"}
+            </Button>
+          </div>
+        }
       />
+      {verifyStatus ? (
+        <p
+          className={
+            verifyStatus.valid
+              ? "border border-border bg-muted/40 px-3 py-2 text-sm"
+              : "border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
+          }
+          role="status"
+        >
+          {verifyStatus.valid
+            ? `Hash chain valid across ${verifyStatus.checked} events.`
+            : `Hash chain invalid after checking ${verifyStatus.checked} events${
+                verifyStatus.firstBrokenEventId
+                  ? ` (first break: ${verifyStatus.firstBrokenEventId})`
+                  : ""
+              }.`}
+        </p>
+      ) : null}
       <Toolbar
         placeholder="Search audit events"
         query={query}

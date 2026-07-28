@@ -1,6 +1,6 @@
 import { queryOptions } from "@tanstack/react-query";
 
-import { apiGet, apiGetPaginated, apiPost, apiPatch, apiDelete, apiDownload } from "@/lib/api/api-client";
+import { apiGet, apiGetPaginated, apiPost, apiPatch, apiDelete, apiDownload, type ApiRequestOptions } from "@/lib/api/api-client";
 import {
   mapAgent,
   mapApproval,
@@ -371,14 +371,14 @@ export const resourceApi = {
     remove: (id: string) => apiDelete(`/vendors/${id}`),
   },
   credentials: {
-    create: (body: unknown) => apiPost("/credentials", body),
+    create: (body: unknown, options?: ApiRequestOptions) => apiPost("/credentials", body, options),
     grant: (id: string, body: unknown) => apiPost(`/credentials/${id}/grants`, body),
     revoke: (id: string) => apiPost(`/credentials/${id}/revoke`, {}),
     revokeGrant: (id: string, grantId: string) => apiDelete(`/credentials/${id}/grants/${grantId}`),
   },
   policies: {
     create: (body: unknown) => apiPost("/policies", body),
-    update: (id: string, body: unknown) => apiPatch(`/policies/${id}`, body),
+    update: (id: string, body: unknown, options?: ApiRequestOptions) => apiPatch(`/policies/${id}`, body, options),
     evaluate: (body: unknown) => apiPost("/policies/evaluate", body),
   },
   workflows: {
@@ -396,6 +396,19 @@ export const resourceApi = {
   receipts: {
     export: (id: string) => apiDownload(`/receipts/${id}/export`),
     file: (fileId: string) => apiDownload(`/files/${fileId}/download`),
+  },
+  audit: {
+    export: () => apiDownload("/audit-events/export"),
+    verify: () =>
+      apiGet<{
+        valid: boolean;
+        checked: number;
+        firstBrokenEventId: string | null;
+        expectedPrevHash?: string | null;
+        actualPrevHash?: string | null;
+        expectedEventHash?: string | null;
+        actualEventHash?: string | null;
+      }>("/audit-events/verify"),
   },
 } as const;
 

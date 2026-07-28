@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu } from "iconoir-react";
+import { Menu } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { BrandLogo } from "@/components/brand/brand-logo";
@@ -25,10 +25,10 @@ export function MobileNav() {
         <Button
           variant="outline"
           size="icon"
-          className="lg:hidden"
+          className="size-10 lg:hidden dark:border-white/25 dark:bg-white/5 dark:text-white dark:hover:bg-white/10 dark:hover:text-white"
           aria-label="Open navigation"
         >
-          <Menu className="size-4" strokeWidth={1.8} />
+          <Menu className="size-[1.125rem]" strokeWidth={1.75} />
         </Button>
       </SheetTrigger>
       <SheetContent
@@ -40,15 +40,11 @@ export function MobileNav() {
             <BrandLogo variant="inverted" className="h-9 w-40" />
           </SheetTitle>
         </SheetHeader>
-        <nav
-          className="space-y-1 px-3 py-4"
-          aria-label="Mobile product navigation"
-        >
+        <nav className="space-y-0.5 px-3 py-4" aria-label="Mobile product navigation">
           {appNavItems.map((item) => {
             const active =
               pathname === item.href ||
-              (item.href !== "/app/home" &&
-                pathname.startsWith(`${item.href}/`));
+              (item.href !== "/app/home" && pathname.startsWith(`${item.href}/`));
 
             return (
               <Link
@@ -56,15 +52,15 @@ export function MobileNav() {
                 href={item.href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "flex min-h-11 items-center gap-3 rounded-md px-3 text-sm font-medium transition-[background-color,color] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring",
+                  "flex min-h-11 items-center gap-3 rounded-xl px-3 text-[15px] font-medium tracking-tight transition-[background-color,color] duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring",
                   active
                     ? "bg-sidebar-primary text-sidebar-primary-foreground"
-                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                    : "text-sidebar-foreground/72 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                 )}
               >
                 <item.icon
-                  className="size-4 shrink-0"
-                  strokeWidth={active ? 2 : 1.7}
+                  className="size-[1.125rem] shrink-0"
+                  strokeWidth={active ? 2 : 1.75}
                 />
                 {item.label}
               </Link>
